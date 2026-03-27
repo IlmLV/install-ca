@@ -11,7 +11,6 @@
 #
 # Usage: powershell -File install-ca-cert.ps1 [-CASource <url-or-path>] [-Force] [-Yes]
 #   or:  irm https://raw.githubusercontent.com/IlmLV/install-ca-cert/main/install-ca-cert.ps1 | iex
-# Note:  Must be run as Administrator for the system trust store step.
 
 param(
     [string]$CASource = "",
@@ -29,6 +28,16 @@ try {
     )
 } catch {
     $IsWindowsPlatform = $env:OS -eq 'Windows_NT'
+}
+
+# ── Elevation check ───────────────────────────────────────────────────────────
+if ($IsWindowsPlatform) {
+    $id        = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = New-Object System.Security.Principal.WindowsPrincipal($id)
+    if (-not $principal.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)) {
+        Write-Error "This script must be run as Administrator. Right-click PowerShell and select 'Run as Administrator', then try again." -ErrorAction Continue
+        exit 1
+    }
 }
 
 $tempDir = [IO.Path]::GetTempPath()

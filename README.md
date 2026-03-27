@@ -73,8 +73,6 @@ bash <(curl -fsSL https://raw.githubusercontent.com/IlmLV/install-ca-cert/main/i
 
 ### Windows
 
-Open PowerShell **as Administrator**:
-
 ```powershell
 irm https://raw.githubusercontent.com/IlmLV/install-ca-cert/main/install-ca-cert.ps1 | iex
 ```
@@ -93,13 +91,9 @@ bash install-ca-cert.sh [CA-URL-or-path] [--yes|-y] [--force|-f]
 
 ### Windows
 
-Open PowerShell **as Administrator**, then:
-
 ```powershell
 powershell -File install-ca-cert.ps1 [-CASource <url-or-path>] [-Force] [-Yes]
 ```
-
-> **Note:** The system certificate store step is skipped if the script is not running as Administrator. The Firefox step does not require elevation.
 
 ---
 
