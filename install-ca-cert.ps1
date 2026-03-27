@@ -33,7 +33,8 @@ if ([string]::IsNullOrWhiteSpace($tempDir)) {
 if ([string]::IsNullOrWhiteSpace($tempDir)) {
     throw "Unable to determine temp directory."
 }
-$CA_FILE = Join-Path $tempDir "ca.crt"
+$caFileName = "ca_{0}.crt" -f ([guid]::NewGuid().ToString("N"))
+$CA_FILE = Join-Path $tempDir $caFileName
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
