@@ -86,7 +86,7 @@ irm https://raw.githubusercontent.com/IlmLV/install-ca-cert/main/install-ca-cert
 ### Linux
 
 ```bash
-bash install-ca-cert.sh [CA-URL-or-path] [--force|-f]
+bash install-ca-cert.sh [CA-URL-or-path] [--yes|-y] [--force|-f]
 ```
 
 `sudo` access is required for writing to `/usr/local/share/ca-certificates/` and running `update-ca-certificates`. The script will prompt for your password at that step.

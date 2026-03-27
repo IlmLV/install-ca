@@ -43,7 +43,6 @@ $CA_FILE = Join-Path $tempDir $caFileName
 
 # ── Ctrl+C handler ────────────────────────────────────────────────────────────
 [Console]::TreatControlCAsInput = $false
-$null = [Console]::CancelKeyPress.GetAddEventList()
 Register-ObjectEvent -InputObject ([Console]) -EventName CancelKeyPress -Action {
     Write-Host ""
     Write-Host "Interrupted — exiting."

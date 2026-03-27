@@ -25,7 +25,14 @@ for arg in "$@"; do
     --force|-f) FORCE=true ;;
     --yes|-y)   YES=true ;;
     --*) echo "ERROR: Unknown option: $arg" >&2; exit 1 ;;
-    *) CA_SOURCE_ARG="$arg" ;;
+    *)
+      if [[ -n "$CA_SOURCE_ARG" ]]; then
+        echo "ERROR: Multiple positional arguments provided: '$CA_SOURCE_ARG' and '$arg'" >&2
+        echo "Usage: bash install-ca-cert.sh [CA-URL-or-path] [--force|-f] [--yes|-y]" >&2
+        exit 1
+      fi
+      CA_SOURCE_ARG="$arg"
+      ;;
   esac
 done
 
@@ -153,7 +160,7 @@ CA_NAME="${CA_CN:-$CA_SUBJECT}"
 
 # Derive a safe filename from CA_NAME
 _safe_name="$(echo "$CA_NAME" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed 's/-\+/-/g; s/^-//; s/-$//')"
-CA_FILENAME="${_safe_name}.crt"
+CA_FILENAME="${_safe_name:-custom-ca}.crt"
 SYSTEM_CA_FILE="$SYSTEM_CA_DIR/$CA_FILENAME"
 
 echo "    CA Name  : $CA_NAME"

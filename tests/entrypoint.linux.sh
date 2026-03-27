@@ -26,4 +26,8 @@ if ! (exec 3<>/dev/tcp/127.0.0.1/8443) 2>/dev/null; then
   echo "ERROR: HTTPS server on 127.0.0.1:8443 did not become reachable after 50 attempts; aborting tests." >&2
   exit 1
 fi
+if ! (exec 3<>/dev/tcp/127.0.0.1/8443) 2>/dev/null; then
+  echo "ERROR: HTTPS server on 127.0.0.1:8443 did not become reachable after 50 attempts; aborting tests." >&2
+  exit 1
+fi
 bats /workspace/tests/linux.bats
