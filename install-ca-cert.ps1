@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+#Requires -Version 7.0
 # Install a CA certificate into system and browser trust stores
 #
 # Browsers handled:
@@ -9,7 +9,7 @@
 #   - Chromium             uses Windows Certificate Store
 #   - Firefox              cert9.db via certutil.exe, or ImportEnterpriseRoots registry policy
 #
-# Usage: powershell -File install-ca-cert.ps1 [-CASource <url-or-path>] [-Force] [-Yes]
+# Usage: pwsh -File install-ca-cert.ps1 [-CASource <url-or-path>] [-Force] [-Yes]
 #   or:  irm https://raw.githubusercontent.com/IlmLV/install-ca-cert/main/install-ca-cert.ps1 | iex
 
 param(
@@ -21,14 +21,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-$IsWindowsPlatform = $false
-try {
-    $IsWindowsPlatform = [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform(
-        [System.Runtime.InteropServices.OSPlatform]::Windows
-    )
-} catch {
-    $IsWindowsPlatform = $env:OS -eq 'Windows_NT'
-}
+$IsWindowsPlatform = $IsWindows
 
 # ── Elevation check ───────────────────────────────────────────────────────────
 if ($IsWindowsPlatform) {
@@ -86,33 +79,7 @@ function Confirm-Action([string]$Prompt) {
 
 # Download without validating server TLS (the CA is not yet trusted)
 function Invoke-InsecureDownload([string]$Uri, [string]$OutFile) {
-    if ($PSVersionTable.PSVersion.Major -ge 6) {
-        Invoke-WebRequest -Uri $Uri -OutFile $OutFile -SkipCertificateCheck
-    } else {
-        # PowerShell 5.1 fallback.
-        # A ScriptBlock cannot run on .NET thread-pool threads (no Runspace), so we use
-        # Add-Type to compile a real delegate that bypasses certificate validation.
-        if (-not ([System.Management.Automation.PSTypeName]'TrustAllCerts').Type) {
-            Add-Type -TypeDefinition @"
-using System.Net.Security;
-using System.Security.Cryptography.X509Certificates;
-public class TrustAllCerts {
-    public static readonly RemoteCertificateValidationCallback Callback =
-        delegate(object s, X509Certificate c, X509Chain ch, SslPolicyErrors e) { return true; };
-}
-"@
-        }
-        $cb    = [System.Net.ServicePointManager]::ServerCertificateValidationCallback
-        $proto = [System.Net.ServicePointManager]::SecurityProtocol
-        [System.Net.ServicePointManager]::SecurityProtocol             = [System.Net.SecurityProtocolType]::Tls12
-        [System.Net.ServicePointManager]::ServerCertificateValidationCallback = [TrustAllCerts]::Callback
-        try {
-            Invoke-WebRequest -Uri $Uri -OutFile $OutFile
-        } finally {
-            [System.Net.ServicePointManager]::ServerCertificateValidationCallback = $cb
-            [System.Net.ServicePointManager]::SecurityProtocol                    = $proto
-        }
-    }
+    Invoke-WebRequest -Uri $Uri -OutFile $OutFile -SkipCertificateCheck
 }
 
 # Add CA to a single NSS sql: database directory using Firefox's certutil.exe

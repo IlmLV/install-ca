@@ -2,7 +2,7 @@
 
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows-blue)](https://github.com/IlmLV/install-ca-cert)
 [![Bash](https://img.shields.io/badge/bash-4.0%2B-4EAA25?logo=gnubash&logoColor=white)](install-ca-cert.sh)
-[![PowerShell](https://img.shields.io/badge/powershell-5.1%2B-5391FE?logo=powershell&logoColor=white)](install-ca-cert.ps1)
+[![PowerShell](https://img.shields.io/badge/powershell-7.0%2B-5391FE?logo=powershell&logoColor=white)](install-ca-cert.ps1)
 [![License](https://img.shields.io/github/license/IlmLV/install-ca-cert)](LICENSE)
 [![Stars](https://img.shields.io/github/stars/IlmLV/install-ca-cert?style=flat)](https://github.com/IlmLV/install-ca-cert/stargazers)
 
@@ -27,7 +27,7 @@ A cross-platform utility for installing a custom CA certificate into the OS syst
 | Platform              | Script                | Requirements                                                                   |
 | --------------------- | --------------------- | ------------------------------------------------------------------------------ |
 | Linux (Debian/Ubuntu) | `install-ca-cert.sh`  | `bash`, `curl`, `openssl`, `sudo`, `libnss3-tools` (auto-installed if missing) |
-| Windows               | `install-ca-cert.ps1` | PowerShell 5.1+, Administrator privileges, Firefox install (for Firefox step)  |
+| Windows               | `install-ca-cert.ps1` | PowerShell 7+, Administrator privileges, Firefox install (for Firefox step)    |
 
 ---
 
@@ -92,7 +92,7 @@ bash install-ca-cert.sh [CA-URL-or-path] [--yes|-y] [--force|-f]
 ### Windows
 
 ```powershell
-powershell -File install-ca-cert.ps1 [-CASource <url-or-path>] [-Force] [-Yes]
+pwsh -File install-ca-cert.ps1 [-CASource <url-or-path>] [-Force] [-Yes]
 ```
 
 ---
@@ -165,7 +165,7 @@ bash tests/run-tests.sh linux-ubuntu
 bash tests/run-tests.sh linux-debian
 ```
 
-On Windows, [Pester](https://pester.dev) is required:
+On Windows, [Pester](https://pester.dev) and PowerShell 7+ (`pwsh`) are required:
 
 ```powershell
 Invoke-Pester tests/windows.ps1
