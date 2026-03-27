@@ -131,11 +131,11 @@ CA_FILE="$WORK_DIR/ca.crt"
 
 if [[ "$CA_SOURCE" =~ ^https?:// ]]; then
   echo "==> Fetching CA certificate from $CA_SOURCE ..."
-  if ! curl_err=$(curl -fsSL "$CA_SOURCE" -o "$CA_FILE" 2>&1); then
+  if ! curl_err=$(curl -fSsL "$CA_SOURCE" -o "$CA_FILE" 2>&1); then
     echo "    WARNING: Secure download failed. The server's TLS certificate may be invalid or self-signed."
     echo "    Detail  : $curl_err"
     if confirm "    Retry without TLS certificate validation (insecure)?"; then
-      curl -kfsSL "$CA_SOURCE" -o "$CA_FILE"
+      curl -kfSsL "$CA_SOURCE" -o "$CA_FILE"
     else
       echo "ERROR: Download aborted." >&2
       exit 1

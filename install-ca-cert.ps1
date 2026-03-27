@@ -42,13 +42,14 @@ $caFileName = "ca_{0}.crt" -f ([guid]::NewGuid().ToString("N"))
 $CA_FILE = Join-Path $tempDir $caFileName
 
 # ── Ctrl+C handler ────────────────────────────────────────────────────────────
+$originalTreatControlCAsInput = [Console]::TreatControlCAsInput
 [Console]::TreatControlCAsInput = $false
-Register-ObjectEvent -InputObject ([Console]) -EventName CancelKeyPress -Action {
+$cancelKeyPressSubscription = Register-ObjectEvent -InputObject ([Console]) -EventName CancelKeyPress -Action {
     Write-Host ""
     Write-Host "Interrupted — exiting."
     Remove-Item $Event.MessageData -Force -ErrorAction SilentlyContinue
     [Environment]::Exit(130)
-} -MessageData $CA_FILE | Out-Null
+} -MessageData $CA_FILE
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
