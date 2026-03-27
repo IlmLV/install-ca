@@ -146,7 +146,7 @@ if [[ "$CA_SOURCE" =~ ^https?:// ]]; then
   fi
 else
   echo "==> Copying CA certificate from $CA_SOURCE ..."
-  cp "$CA_SOURCE" "$CA_FILE"
+  cp -- "$CA_SOURCE" "$CA_FILE"
 fi
 
 if ! openssl x509 -in "$CA_FILE" -noout 2>/dev/null; then

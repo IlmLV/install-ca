@@ -196,6 +196,7 @@ if (-not $IsWindowsPlatform) {
         $ucOutput = & update-ca-certificates 2>&1
         if ($LASTEXITCODE -ne 0) {
             Write-Error "update-ca-certificates failed (exit $LASTEXITCODE): $ucOutput" -ErrorAction Continue
+            exit 1
         }
         Write-Host "    Installed: $systemCaFile"
     } else {
