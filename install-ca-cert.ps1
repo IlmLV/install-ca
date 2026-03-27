@@ -123,7 +123,13 @@ try {
 if (-not [string]::IsNullOrWhiteSpace($CASource)) {
     $CA_SOURCE = $CASource
 } else {
-    $CA_SOURCE = Read-Host "Enter CA certificate URL or file path"
+    try {
+        $CA_SOURCE = Read-Host "Enter CA certificate URL or file path"
+    } catch {
+        # In non-interactive sessions, Read-Host can throw a terminating error.
+        # Treat this as if no input was provided so we can emit a friendly message.
+        $CA_SOURCE = ""
+    }
 }
 
 if ([string]::IsNullOrWhiteSpace($CA_SOURCE)) {
