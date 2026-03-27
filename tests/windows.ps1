@@ -32,6 +32,8 @@ BeforeAll {
         )
 
         $argList = [Collections.Generic.List[string]]::new()
+        $argList.Add('-NoProfile')
+        $argList.Add('-NonInteractive')
         $argList.Add('-File')
         $argList.Add($ScriptPath)
         if ($CASource) { $argList.Add('-CASource'); $argList.Add($CASource) }

@@ -61,7 +61,10 @@ confirm() {
     echo "$1 [y/N] y"
     return 0
   fi
-  read -r -p "$1 [y/N] " reply
+  reply=""
+  if ! read -r -p "$1 [y/N] " reply; then
+    reply=""
+  fi
   [[ "$reply" =~ ^[Yy]$ ]]
 }
 

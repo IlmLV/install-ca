@@ -60,31 +60,51 @@ $cancelKeyPressSubscription = Register-ObjectEvent -InputObject ([Console]) -Eve
     [Environment]::Exit(130)
 } -MessageData $CA_FILE
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+try {
+    # ── Helpers ───────────────────────────────────────────────────────────────
 
-function Confirm-Action([string]$Prompt) {
-    if ($Yes) {
-        Write-Host "$Prompt [y/N] y"
-        return $true
+    function Confirm-Action([string]$Prompt) {
+        if ($Yes) {
+            Write-Host "$Prompt [y/N] y"
+            return $true
+        }
+        $reply = Read-Host "$Prompt [y/N]"
+        return $reply -match '^[Yy]$'
     }
-    $reply = Read-Host "$Prompt [y/N]"
-    return $reply -match '^[Yy]$'
-}
 
-function Test-Admin {
-    if (-not $IsWindowsPlatform) { return $false }
+    function Test-Admin {
+        if (-not $IsWindowsPlatform) { return $false }
+        try {
+            $id = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+            $principal = New-Object System.Security.Principal.WindowsPrincipal($id)
+            return $principal.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)
+        } catch {
+            return $false
+        }
+    }
+    [...]
+} finally {
+    # Restore original console Ctrl+C behavior
     try {
-        $id = [System.Security.Principal.WindowsIdentity]::GetCurrent()
-        $principal = New-Object System.Security.Principal.WindowsPrincipal($id)
-        return $principal.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)
+        [Console]::TreatControlCAsInput = $originalTreatControlCAsInput
     } catch {
-        return $false
+        # Ignore failures restoring console state
     }
-}
 
-function Get-CertThumbprint([string]$Path) {
-    $c = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2 $Path
-    return $c.Thumbprint
+    # Unregister the CancelKeyPress event and remove its job
+    if ($null -ne $cancelKeyPressSubscription) {
+        try {
+            Unregister-Event -SourceIdentifier $cancelKeyPressSubscription.Name -ErrorAction SilentlyContinue
+        } catch {
+            # Ignore failures unregistering event
+        }
+
+        try {
+            Remove-Job -Id $cancelKeyPressSubscription.Id -Force -ErrorAction SilentlyContinue
+        } catch {
+            # Ignore failures removing job
+        }
+    }
 }
 
 # Download without validating server TLS (the CA is not yet trusted)
@@ -361,5 +381,33 @@ if ($found) {
 Write-Host ""
 Write-Host "==> All done. Fully quit and restart any open browsers for changes to take effect."
 } finally {
+    # Restore console Ctrl+C behavior if it was changed during script execution
+    try {
+        [Console]::TreatControlCAsInput = $false
+    } catch {
+        # Ignore any errors when restoring console state
+    }
+
+    # Unregister any CancelKeyPress event handlers and remove associated jobs
+    try {
+        Get-EventSubscriber -SourceIdentifier ConsoleCancelKeyPress -ErrorAction SilentlyContinue |
+            ForEach-Object {
+                try {
+                    Unregister-Event -SourceIdentifier $_.SourceIdentifier -ErrorAction SilentlyContinue
+                } catch {
+                    # Ignore failures when unregistering events
+                }
+
+                if ($_.Action -and $_.Action.Job) {
+                    try {
+                        Remove-Job -Id $_.Action.Job.Id -Force -ErrorAction SilentlyContinue
+                    } catch {
+                        # Ignore failures when removing jobs
+                    }
+                }
+            }
+    } catch {
+        # Ignore failures when querying event subscribers
+    }
     Remove-Item $CA_FILE -Force -ErrorAction SilentlyContinue
 }
