@@ -22,11 +22,4 @@ for _ in $(seq 1 50); do
   (exec 3<>/dev/tcp/127.0.0.1/8443) 2>/dev/null && break || sleep 0.1
 done
 
-mkdir -p /run/dbus
-dbus-daemon --system --fork --address=unix:path=/run/dbus/system_bus_socket >/dev/null 2>&1 || true
-for _ in $(seq 1 20); do
-  [[ -S /run/dbus/system_bus_socket ]] && break
-  sleep 0.1
-done
-
 bats /workspace/tests/linux.bats
