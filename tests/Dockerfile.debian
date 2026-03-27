@@ -1,0 +1,15 @@
+FROM debian:latest
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+COPY tests/docker-linux-setup.sh /tmp/docker-linux-setup.sh
+RUN bash /tmp/docker-linux-setup.sh && rm -f /tmp/docker-linux-setup.sh
+
+# Copy repo so BASH_SOURCE[0] resolves to a real file, giving SCRIPT_DIR=/workspace
+COPY . /workspace
+
+WORKDIR /workspace
+
+RUN chmod +x /workspace/tests/entrypoint.linux.sh
+
+ENTRYPOINT ["/workspace/tests/entrypoint.linux.sh"]
