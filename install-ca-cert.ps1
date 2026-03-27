@@ -235,11 +235,16 @@ if (Confirm-Action "    Add '$CA_NAME' to the Windows Root CA store?") {
     )
     $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
     try {
-        $store.Add($cert)
+        $existingCerts = $store.Certificates | Where-Object { $_.Thumbprint -eq $cert.Thumbprint }
+        if ($existingCerts -and $existingCerts.Count -gt 0) {
+            Write-Host "    Certificate with the same thumbprint is already present in LocalMachine\Root. Skipping add to avoid duplicate."
+        } else {
+            $store.Add($cert)
+            Write-Host "    Done."
+        }
     } finally {
         $store.Close()
     }
-    Write-Host "    Done."
 } else {
     Write-Host "    Skipped."
 }
