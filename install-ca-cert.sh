@@ -37,6 +37,7 @@ cleanup() {
 }
 
 trap cleanup EXIT INT TERM
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 confirm() {
@@ -138,7 +139,8 @@ CA_CN=$(printf '%s' "$CA_SUBJECT" | sed 's/.*CN\s*=\s*//' | sed 's/,.*//')
 CA_NAME="${CA_CN:-$CA_SUBJECT}"
 
 # Derive a safe filename from CA_NAME
-CA_FILENAME="$(echo "$CA_NAME" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed 's/-\+/-/g; s/^-//; s/-$//').crt"
+_safe_name="$(echo "$CA_NAME" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed 's/-\+/-/g; s/^-//; s/-$//')"
+CA_FILENAME="${_safe_name}.crt"
 SYSTEM_CA_FILE="$SYSTEM_CA_DIR/$CA_FILENAME"
 
 echo "    CA Name  : $CA_NAME"

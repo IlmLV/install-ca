@@ -68,8 +68,6 @@ pick_edge_bin() {
     return 1
 }
 
-
-
 run_headless() {
     local label="$1"; shift
     run_timeout "$@"
@@ -83,6 +81,7 @@ setup() {
     rm -f "$SYSTEM_CA_DIR/test-ca.crt" "$SYSTEM_CA_DIR/test-https-ca.crt"
     rm -rf "$SHARED_NSS_DIR" "$BRAVE_NSS_DIR" "$CHROMIUM_NSS_DIR" "$FIREFOX_DEB_NSS_DIR" "$FIREFOX_SNAP_NSS_DIR"
 }
+
 teardown() {
     rm -f "$SYSTEM_CA_DIR/test-ca.crt" "$SYSTEM_CA_DIR/test-https-ca.crt"
     rm -rf "$SHARED_NSS_DIR" "$BRAVE_NSS_DIR" "$CHROMIUM_NSS_DIR" "$FIREFOX_DEB_NSS_DIR" "$FIREFOX_SNAP_NSS_DIR"
