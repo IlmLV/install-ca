@@ -16,7 +16,7 @@ BeforeAll {
     function global:Invoke-WithInput([string[]]$Inputs) {
         $inputsJson = $Inputs | ConvertTo-Json -Compress
 
-        $tmp = [IO.Path]::GetTempFileName() + '.ps1'
+        $tmp = Join-Path ([IO.Path]::GetTempPath()) ("{0}.ps1" -f [IO.Path]::GetRandomFileName())
         Set-Content $tmp @"
 `$global:_Q = [Collections.Generic.Queue[string]]::new()
 `$inputsJson = @'
