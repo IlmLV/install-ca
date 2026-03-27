@@ -116,6 +116,38 @@ Describe 'install-ca-cert.ps1 (Windows)' {
         }
     }
 
+    # TODO: add headless TLS verification tests for browsers on Windows:
+    #   - Chrome    — uses Windows cert store; should trust CA after system install
+    #   - Edge      — uses Windows cert store; should trust CA after system install
+    #   - Firefox   — uses its own NSS profile store; requires profile setup like Linux tests
+    #   - Brave     — uses Windows cert store; should trust CA after system install
+    #   - Chromium  — uses Windows cert store; should trust CA after system install
+
+    It 'Chrome headless loads HTTPS page after trust install' {
+        # TODO: implement — Chrome uses the Windows cert store, so trust is implicit after
+        # system install. Spawn: chrome --headless=new --no-sandbox --dump-dom https://...
+        Set-ItResult -Skipped -Because 'not yet implemented'
+    }
+
+    It 'Microsoft Edge headless loads HTTPS page after trust install' {
+        # TODO: implement — Edge uses the Windows cert store, so trust is implicit after
+        # system install. Spawn: msedge --headless=new --no-sandbox --dump-dom https://...
+        Set-ItResult -Skipped -Because 'not yet implemented'
+    }
+
+    It 'Firefox headless loads HTTPS page after trust install' {
+        # TODO: implement — Firefox uses its own NSS profile store on Windows.
+        # Requires profile directory setup similar to the Linux $FIREFOX_DEB_NSS_DIR tests,
+        # then: firefox --headless --no-remote --profile <dir> --screenshot ... https://...
+        Set-ItResult -Skipped -Because 'not yet implemented'
+    }
+
+    It 'Brave headless loads HTTPS page after trust install' {
+        # TODO: implement — Brave uses the Windows cert store, so trust is implicit after
+        # system install. Spawn: brave --headless=new --no-sandbox --dump-dom https://...
+        Set-ItResult -Skipped -Because 'not yet implemented'
+    }
+
     It 'HTTPS URL trusts system CA after install' {
         if (-not (Test-Path $script:HttpsCaFile)) {
             Set-ItResult -Skipped -Because 'openssl not available — HTTPS certs not generated'
