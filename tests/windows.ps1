@@ -8,10 +8,16 @@ BeforeAll {
     $RepoRoot   = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
     $ScriptPath = Join-Path $RepoRoot 'install-ca-cert.ps1'
 
+    $rawTimeout = if ($env:CMD_TIMEOUT_SECS) { $env:CMD_TIMEOUT_SECS } else { '10' }
+    $script:CmdTimeoutMs = [int]($rawTimeout -replace 's$', '') * 1000
+
     # Generate test certificates via the dedicated script (cert gen is not inline here)
     $script:TmpCertDir = Join-Path ([IO.Path]::GetTempPath()) "test-certs-$([guid]::NewGuid().ToString('N'))"
     & (Join-Path $PSScriptRoot 'generate-certs.ps1') -OutputDir $script:TmpCertDir
-    $script:CertFile = Join-Path $script:TmpCertDir 'test-ca.crt'
+    $script:CertFile      = Join-Path $script:TmpCertDir 'test-ca.crt'
+    $script:HttpsCaFile   = Join-Path $script:TmpCertDir 'https-ca.crt'
+    $script:HttpsServerCrt = Join-Path $script:TmpCertDir 'https-server.crt'
+    $script:HttpsServerKey = Join-Path $script:TmpCertDir 'https-server.key'
 
     # Strip #Requires and param() block (both are invalid when the script is inlined)
     $script:RawScript = (Get-Content $ScriptPath -Raw) `
@@ -49,7 +55,13 @@ $($script:RawScript)
         }
         $p = [Diagnostics.Process]::Start($psi)
         $out = $p.StandardOutput.ReadToEnd() + $p.StandardError.ReadToEnd()
-        $p.WaitForExit()
+        $finished = $p.WaitForExit($script:CmdTimeoutMs)
+        if (-not $finished) {
+            $p.Kill()
+            $p.WaitForExit()
+            Remove-Item $tmp -Force -ErrorAction SilentlyContinue
+            return [PSCustomObject]@{ ExitCode = 124; Output = 'Command timed out' }
+        }
         Remove-Item $tmp -Force -ErrorAction SilentlyContinue
         return [PSCustomObject]@{ ExitCode = $p.ExitCode; Output = $out.Trim() }
     }
@@ -69,34 +81,99 @@ Describe 'install-ca-cert.ps1 (Windows)' {
         $r.Output   | Should -Match 'No CA source provided'
     }
 
-    It 'local cert file: loads, extracts CN, exits cleanly' {
-        $r = Invoke-WithInput @($script:CertFile)
-        $r.ExitCode | Should -Be 0
-        $r.Output   | Should -Match 'CA Name\s+:\s+Test CA'
+    It 'local cert file: installs and verifies' {
+        $cert = [Security.Cryptography.X509Certificates.X509Certificate2]::new($script:CertFile)
+        try {
+            $r = Invoke-WithInput @($script:CertFile, 'y', 'n')
+            $r.ExitCode | Should -Be 0
+            $r.Output   | Should -Match 'CA Name\s+:\s+Test CA'
+            $r.Output   | Should -Match 'System trust: OK'
+        }
+        finally {
+            $store = [Security.Cryptography.X509Certificates.X509Store]::new('Root', 'LocalMachine')
+            $store.Open('ReadWrite')
+            $store.Certificates | Where-Object Thumbprint -eq $cert.Thumbprint | ForEach-Object { $store.Remove($_) }
+            $store.Close()
+        }
     }
 
-    It 'HTTP URL: fetches cert over plain HTTP' {
-        # Discover an ephemeral free port on localhost
-        $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0)
+    It 'already installed cert exits cleanly' {
+        $cert = [Security.Cryptography.X509Certificates.X509Certificate2]::new($script:CertFile)
+        $store = [Security.Cryptography.X509Certificates.X509Store]::new('Root', 'LocalMachine')
+        $store.Open('ReadWrite')
+        $store.Add($cert)
+        $store.Close()
+        try {
+            $r = Invoke-WithInput @($script:CertFile)
+            $r.ExitCode | Should -Be 0
+            $r.Output   | Should -Match 'Already up-to-date'
+        }
+        finally {
+            $store = [Security.Cryptography.X509Certificates.X509Store]::new('Root', 'LocalMachine')
+            $store.Open('ReadWrite')
+            $store.Certificates | Where-Object Thumbprint -eq $cert.Thumbprint | ForEach-Object { $store.Remove($_) }
+            $store.Close()
+        }
+    }
+
+    It 'HTTPS URL trusts system CA after install' {
+        if (-not (Test-Path $script:HttpsCaFile)) {
+            Set-ItResult -Skipped -Because 'openssl not available — HTTPS certs not generated'
+            return
+        }
+
+        $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
         $listener.Start()
-        $port = ($listener.LocalEndpoint).Port
+        $port = $listener.LocalEndpoint.Port
         $listener.Stop()
 
         $job = Start-Job {
-            param($dir, $port)
-            python -m http.server $port --bind 127.0.0.1 --directory $dir
-        } -ArgumentList $script:TmpCertDir, $port
+            param($crt, $key, $port)
+            & openssl s_server -quiet -accept $port -cert $crt -key $key -www 2>$null
+        } -ArgumentList $script:HttpsServerCrt, $script:HttpsServerKey, $port
 
+        $installed = $false
         try {
-            Start-Sleep -Milliseconds 800
+            $sw = [Diagnostics.Stopwatch]::StartNew()
+            while ($sw.Elapsed.TotalSeconds -lt 5) {
+                try {
+                    $tcp = [Net.Sockets.TcpClient]::new('127.0.0.1', $port)
+                    $tcp.Close()
+                    break
+                } catch {
+                    Start-Sleep -Milliseconds 100
+                }
+            }
+            $sw.Stop()
 
-            $r = Invoke-WithInput @("http://127.0.0.1:$port/test-ca.crt")
+            $r = Invoke-WithInput @($script:HttpsCaFile, 'y', 'y')
             $r.ExitCode | Should -Be 0
-            $r.Output   | Should -Match 'CA Name\s+:\s+Test CA'
+            $installed = $true
+
+            $psi = [Diagnostics.ProcessStartInfo]@{
+                FileName = 'pwsh'
+                Arguments = "-NoProfile -NonInteractive -Command `"Invoke-WebRequest https://127.0.0.1:$port/ -UseBasicParsing | Out-Null`""
+                RedirectStandardOutput = $true; RedirectStandardError = $true
+                UseShellExecute = $false
+            }
+            $p = [Diagnostics.Process]::Start($psi)
+            $stdoutTask = $p.StandardOutput.ReadToEndAsync()
+            $stderrTask = $p.StandardError.ReadToEndAsync()
+            $fin = $p.WaitForExit($script:CmdTimeoutMs)
+            [void]$stdoutTask.Result; [void]$stderrTask.Result
+            if (-not $fin) { $p.Kill(); $p.WaitForExit() }
+            $p.ExitCode | Should -Be 0
         }
         finally {
             Stop-Job $job -ErrorAction SilentlyContinue
             Remove-Job $job -Force -ErrorAction SilentlyContinue
+            if ($installed) {
+                $thumb = (New-Object Security.Cryptography.X509Certificates.X509Certificate2 $script:HttpsCaFile).Thumbprint
+                $store = [Security.Cryptography.X509Certificates.X509Store]::new('Root', 'LocalMachine')
+                $store.Open('ReadWrite')
+                $store.Certificates | Where-Object Thumbprint -eq $thumb | ForEach-Object { $store.Remove($_) }
+                $store.Close()
+            }
         }
     }
 }

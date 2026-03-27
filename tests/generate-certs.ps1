@@ -25,4 +25,25 @@ Set-Content -Path (Join-Path $OutputDir 'test-ca.crt') `
 # Remove from cert store — only needed for export
 Remove-Item "Cert:\CurrentUser\My\$($testCert.Thumbprint)" -Force -ErrorAction SilentlyContinue
 
+# ── HTTPS test CA + server cert (requires openssl in PATH) ───────────────────
+if (Get-Command openssl -ErrorAction SilentlyContinue) {
+    & openssl req -x509 -newkey rsa:2048 -keyout "$OutputDir\https-ca.key" `
+        -out "$OutputDir\https-ca.crt" -days 365 -nodes `
+        -subj "/CN=Test HTTPS CA" 2>$null
+
+    & openssl req -newkey rsa:2048 -keyout "$OutputDir\https-server.key" `
+        -out "$OutputDir\https-server.csr" -nodes `
+        -subj "/CN=localhost" 2>$null
+
+    $ext = [IO.Path]::GetTempFileName()
+    Set-Content $ext "subjectAltName=DNS:localhost,IP:127.0.0.1`nextendedKeyUsage=serverAuth`nkeyUsage=digitalSignature,keyEncipherment`nbasicConstraints=CA:FALSE" -Encoding ASCII
+
+    & openssl x509 -req -in "$OutputDir\https-server.csr" `
+        -CA "$OutputDir\https-ca.crt" -CAkey "$OutputDir\https-ca.key" `
+        -CAcreateserial -out "$OutputDir\https-server.crt" -days 365 `
+        -extfile $ext 2>$null
+
+    Remove-Item $ext, "$OutputDir\https-server.csr" -Force -ErrorAction SilentlyContinue
+}
+
 Write-Host "Certificates generated in $OutputDir"

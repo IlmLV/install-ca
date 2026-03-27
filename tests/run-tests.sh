@@ -7,6 +7,13 @@ set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
+on_interrupt() {
+  echo ""
+  echo "Interrupted (Ctrl+C). Exiting test runner."
+  exit 130
+}
+trap on_interrupt INT
+
 SUITES=("$@")
 if [[ ${#SUITES[@]} -eq 0 ]]; then
   SUITES=(linux-ubuntu linux-debian)
@@ -28,18 +35,25 @@ run_suite() {
   echo ""
   local status_prefix="== $name == "
   printf '%sbuilding... ' "$status_prefix"
-  if ! build_out="$(docker build -q -f "$dockerfile" -t "$tag" . 2>&1)"; then
+  if build_out="$(docker build -q -f "$dockerfile" -t "$tag" . 2>&1)"; then
+    echo "OK"
+  else
+    local rc=$?
+    [[ "$rc" -eq 130 ]] && on_interrupt
     echo "FAIL"
     echo "ERROR: docker build failed for $name" >&2
     printf '%s\n' "$build_out" >&2
     FAIL+=("$name (build failed)")
     return
   fi
-  echo "OK"
   if docker run --rm -t "$tag"; then
     PASS+=("$name")
     echo "run: OK"
   else
+    local rc=$?
+    if [[ "$rc" -eq 130 ]]; then
+      on_interrupt
+    fi
     FAIL+=("$name")
     echo "run: FAIL"
     echo "ERROR: docker run failed for $name" >&2

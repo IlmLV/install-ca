@@ -27,7 +27,7 @@ require_cmd() {
 }
 
 run_timeout() {
-    local duration="${BATS_CMD_TIMEOUT:-30s}"
+    local duration="${CMD_TIMEOUT_SECS:-10s}"
     run timeout "$duration" "$@"
 }
 
@@ -53,7 +53,8 @@ run_headless() {
     local label="$1"; shift
     run_timeout "$@"
     if [[ "$status" -eq 124 ]]; then
-        skip "$label timed out in this container environment"
+        echo "$label timed out in this container environment"
+        return 1
     fi
 }
 
