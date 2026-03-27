@@ -75,7 +75,12 @@ function Confirm-Action([string]$Prompt) {
         Write-Host "$Prompt [y/N] y"
         return $true
     }
-    $reply = Read-Host "$Prompt [y/N]"
+    try {
+        $reply = Read-Host "$Prompt [y/N]"
+    } catch {
+        # Non-interactive or input unavailable — treat as a declined confirmation.
+        return $false
+    }
     return $reply -match '^[Yy]$'
 }
 
