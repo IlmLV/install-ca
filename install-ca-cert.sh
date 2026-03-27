@@ -10,18 +10,20 @@
 #   - Firefox (deb/non-snap)      per-profile cert9.db under ~/.mozilla/firefox/
 #   - Firefox (snap)              per-profile cert9.db under ~/snap/firefox/
 #
-# Usage: bash install-ca-cert.sh [CA-URL-or-path] [--force|-f]
+# Usage: bash install-ca-cert.sh [CA-URL-or-path] [--force|-f] [--yes|-y]
 #   or:  bash <(curl -fsSL https://raw.githubusercontent.com/IlmLV/install-ca-cert/main/install-ca-cert.sh)
 
 set -euo pipefail
 
 # ── Argument parsing ──────────────────────────────────────────────────────────
 FORCE=false
+YES=false
 CA_SOURCE_ARG=""
 
 for arg in "$@"; do
   case "$arg" in
     --force|-f) FORCE=true ;;
+    --yes|-y)   YES=true ;;
     --*) echo "ERROR: Unknown option: $arg" >&2; exit 1 ;;
     *) CA_SOURCE_ARG="$arg" ;;
   esac
@@ -41,6 +43,10 @@ trap cleanup EXIT INT TERM
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 confirm() {
+  if [[ "$YES" == true ]]; then
+    echo "$1 [y/N] y"
+    return 0
+  fi
   read -r -p "$1 [y/N] " reply
   [[ "$reply" =~ ^[Yy]$ ]]
 }

@@ -17,7 +17,7 @@ A cross-platform utility for installing a custom CA certificate into the OS syst
 - **Compares the remote certificate against the currently installed one** before making any changes — shows fingerprint and expiry of both, reports whether an update is needed
 - Exits early without changes if the certificate is already up-to-date (override with `--force` / `-f` / `-Force`)
 - Installs into **all relevant trust stores** in a single run — OS store and per-browser stores
-- Prompts for confirmation before each store is modified
+- Prompts for confirmation before each store is modified (suppress with `--yes` / `-y` on Linux or `-Yes` on Windows)
 - Verifies the installation at the end
 
 ---
@@ -96,7 +96,7 @@ bash install-ca-cert.sh [CA-URL-or-path] [--force|-f]
 Open PowerShell **as Administrator**, then:
 
 ```powershell
-powershell -File install-ca-cert.ps1 [-CASource <url-or-path>] [-Force]
+powershell -File install-ca-cert.ps1 [-CASource <url-or-path>] [-Force] [-Yes]
 ```
 
 > **Note:** The system certificate store step is skipped if the script is not running as Administrator. The Firefox step does not require elevation.

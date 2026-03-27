@@ -9,13 +9,14 @@
 #   - Chromium             uses Windows Certificate Store
 #   - Firefox              cert9.db via certutil.exe, or ImportEnterpriseRoots registry policy
 #
-# Usage: powershell -File install-ca-cert.ps1 [-CASource <url-or-path>] [-Force]
+# Usage: powershell -File install-ca-cert.ps1 [-CASource <url-or-path>] [-Force] [-Yes]
 #   or:  irm https://raw.githubusercontent.com/IlmLV/install-ca-cert/main/install-ca-cert.ps1 | iex
 # Note:  Must be run as Administrator for the system trust store step.
 
 param(
     [string]$CASource = "",
-    [switch]$Force
+    [switch]$Force,
+    [switch]$Yes
 )
 
 Set-StrictMode -Version Latest
@@ -43,6 +44,10 @@ $CA_FILE = Join-Path $tempDir $caFileName
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 function Confirm-Action([string]$Prompt) {
+    if ($Yes) {
+        Write-Host "$Prompt [y/N] y"
+        return $true
+    }
     $reply = Read-Host "$Prompt [y/N]"
     return $reply -match '^[Yy]$'
 }

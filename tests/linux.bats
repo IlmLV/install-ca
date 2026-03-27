@@ -18,7 +18,7 @@ init_nss_db() {
 }
 
 install_https_ca() {
-    run bash -c "printf '%s\n' '$HTTPS_CA' 'y' 'y' 'y' | bash '$SCRIPT'"
+    run bash "$SCRIPT" -y "$HTTPS_CA"
     [ "$status" -eq 0 ]
 }
 
@@ -94,7 +94,7 @@ teardown() {
 }
 
 @test "local cert file: installs and verifies" {
-    run bash -c "printf '%s\n' '$CERT' 'y' 'y' | bash '$SCRIPT'"
+    run bash "$SCRIPT" -y "$CERT"
     [ "$status" -eq 0 ]
     [[ "$output" == *"CA Name  : Test CA"* ]]
     [[ "$output" == *"System trust: OK"* ]]
@@ -114,7 +114,7 @@ teardown() {
     init_nss_db "$FIREFOX_DEB_NSS_DIR"
     init_nss_db "$FIREFOX_SNAP_NSS_DIR"
 
-    run bash -c "printf '%s\n' '$CERT' 'y' 'y' 'y' 'y' 'y' | bash '$SCRIPT'"
+    run bash "$SCRIPT" -y "$CERT"
     [ "$status" -eq 0 ]
 
     run certutil -d "sql:$SHARED_NSS_DIR" -L -n "Test CA"
