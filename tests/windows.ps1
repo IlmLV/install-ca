@@ -46,6 +46,7 @@ function global:Read-Host { param([string]`$Prompt)
     return '' }
 `$CASource = ''
 `$Force = `$false
+`$Yes = `$false
 $($script:RawScript)
 "@
         $psi = [Diagnostics.ProcessStartInfo]@{
