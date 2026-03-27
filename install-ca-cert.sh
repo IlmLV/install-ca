@@ -38,7 +38,14 @@ cleanup() {
   fi
 }
 
-trap cleanup EXIT INT TERM
+on_interrupt() {
+  echo ""
+  echo "Interrupted — exiting."
+  exit 130
+}
+
+trap cleanup EXIT
+trap on_interrupt INT TERM
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
