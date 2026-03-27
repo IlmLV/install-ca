@@ -231,10 +231,11 @@ install_to_nss_dbs "Firefox (all profiles — deb + snap)" "${FIREFOX_DIRS[@]}"
 # ── 10. Verify ────────────────────────────────────────────────────────────────
 echo ""
 echo "==> Verifying system trust ..."
-if openssl verify -CAfile "$SYSTEM_CA_FILE" "$CA_FILE" &>/dev/null; then
+SYSTEM_CA_PATH="/etc/ssl/certs"
+if openssl verify -CApath "$SYSTEM_CA_PATH" "$CA_FILE" &>/dev/null; then
   echo "    System trust: OK"
 else
-  echo "    System trust: FAILED (check $SYSTEM_CA_FILE)"
+  echo "    System trust: FAILED (check that update-ca-certificates succeeded and that the CA is present in $SYSTEM_CA_PATH)"
 fi
 
 echo ""
