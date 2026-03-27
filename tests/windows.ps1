@@ -95,7 +95,7 @@ Describe 'install-ca-cert.ps1 (Windows)' {
             $r.Output   | Should -Match 'CA Name\s+:\s+Test CA'
         }
         finally {
-            Stop-Job $job -Force -ErrorAction SilentlyContinue
+            Stop-Job $job -ErrorAction SilentlyContinue
             Remove-Job $job -Force -ErrorAction SilentlyContinue
         }
     }
