@@ -22,7 +22,7 @@ BeforeAll {
     # Strip #Requires and param() block (both are invalid when the script is inlined)
     $script:RawScript = (Get-Content $ScriptPath -Raw) `
         -replace '(?m)^#Requires[^\r\n]*[\r\n]+', '' `
-        -replace '(?ms)^param\s*\(.*?\)\s*[\r\n]+', ''
+        -replace '(?ms)^(?:\s*#.*[\r\n]+|\s*[\r\n]+)*\s*param\s*\(.*?\)\s*[\r\n]+', ''
 
     function global:Invoke-WithInput([string[]]$Inputs) {
         $inputsJson = $Inputs | ConvertTo-Json -Compress
