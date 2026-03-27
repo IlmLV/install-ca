@@ -19,6 +19,13 @@ set -euo pipefail
 SCRIPT_DIR="$(mktemp -d)"
 SYSTEM_CA_DIR="/usr/local/share/ca-certificates"
 
+cleanup() {
+  if [[ -n "${SCRIPT_DIR:-}" && -d "$SCRIPT_DIR" ]]; then
+    rm -rf "$SCRIPT_DIR"
+  fi
+}
+
+trap cleanup EXIT INT TERM
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 confirm() {
