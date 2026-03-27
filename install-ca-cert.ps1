@@ -107,7 +107,7 @@ public class TrustAllCerts {
         [System.Net.ServicePointManager]::SecurityProtocol             = [System.Net.SecurityProtocolType]::Tls12
         [System.Net.ServicePointManager]::ServerCertificateValidationCallback = [TrustAllCerts]::Callback
         try {
-            Invoke-WebRequest -Uri $Uri -OutFile $OutFile -UseBasicParsing
+            Invoke-WebRequest -Uri $Uri -OutFile $OutFile
         } finally {
             [System.Net.ServicePointManager]::ServerCertificateValidationCallback = $cb
             [System.Net.ServicePointManager]::SecurityProtocol                    = $proto
@@ -149,7 +149,7 @@ if ($CA_SOURCE -match '^https?://') {
     Write-Host "==> Fetching CA certificate from $CA_SOURCE ..."
     $downloadOk = $false
     try {
-        Invoke-WebRequest -Uri $CA_SOURCE -OutFile $CA_FILE -UseBasicParsing
+        Invoke-WebRequest -Uri $CA_SOURCE -OutFile $CA_FILE
         $downloadOk = $true
     } catch {
         Write-Host "    WARNING: Secure download failed. The server's TLS certificate may be invalid or self-signed."

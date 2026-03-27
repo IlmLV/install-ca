@@ -107,6 +107,14 @@ teardown() {
     [[ "$output" == *"Already up-to-date"* ]]
 }
 
+@test "--force: already installed cert continues and reinstalls" {
+    cp "$CERT" "$SYSTEM_CA_DIR/test-ca.crt"
+    run bash "$SCRIPT" -y --force "$CERT"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"--force was specified, continuing"* ]]
+    [[ "$output" == *"System trust: OK"* ]]
+}
+
 @test "updates all browser NSS databases" {
     init_nss_db "$SHARED_NSS_DIR"
     init_nss_db "$BRAVE_NSS_DIR"

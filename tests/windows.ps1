@@ -116,6 +116,26 @@ Describe 'install-ca-cert.ps1 (Windows)' {
         }
     }
 
+    It '-Force: already installed cert continues and reinstalls' {
+        $cert = [Security.Cryptography.X509Certificates.X509Certificate2]::new($script:CertFile)
+        try {
+            $store = [Security.Cryptography.X509Certificates.X509Store]::new('Root', 'LocalMachine')
+            $store.Open('ReadWrite')
+            $store.Add($cert)
+            $store.Close()
+            $r = Invoke-Script -CASource $script:CertFile -Yes -Force
+            $r.ExitCode | Should -Be 0
+            $r.Output   | Should -Match '-Force was specified, continuing'
+            $r.Output   | Should -Match 'System trust: OK'
+        }
+        finally {
+            $store = [Security.Cryptography.X509Certificates.X509Store]::new('Root', 'LocalMachine')
+            $store.Open('ReadWrite')
+            $store.Certificates | Where-Object Thumbprint -eq $cert.Thumbprint | ForEach-Object { $store.Remove($_) }
+            $store.Close()
+        }
+    }
+
     # TODO: add headless TLS verification tests for browsers on Windows:
     #   - Chrome    — uses Windows cert store; should trust CA after system install
     #   - Edge      — uses Windows cert store; should trust CA after system install
@@ -159,10 +179,22 @@ Describe 'install-ca-cert.ps1 (Windows)' {
         $port = $listener.LocalEndpoint.Port
         $listener.Stop()
 
-        $job = Start-Job {
-            param($crt, $key, $port)
-            & openssl s_server -quiet -accept $port -cert $crt -key $key -www 2>$null
-        } -ArgumentList $script:HttpsServerCrt, $script:HttpsServerKey, $port
+        $opensslPsi = [Diagnostics.ProcessStartInfo]@{
+            FileName               = 'openssl'
+            RedirectStandardOutput = $true
+            RedirectStandardError  = $true
+            UseShellExecute        = $false
+        }
+        $opensslPsi.ArgumentList.Add('s_server')
+        $opensslPsi.ArgumentList.Add('-quiet')
+        $opensslPsi.ArgumentList.Add('-accept')
+        $opensslPsi.ArgumentList.Add($port.ToString())
+        $opensslPsi.ArgumentList.Add('-cert')
+        $opensslPsi.ArgumentList.Add($script:HttpsServerCrt)
+        $opensslPsi.ArgumentList.Add('-key')
+        $opensslPsi.ArgumentList.Add($script:HttpsServerKey)
+        $opensslPsi.ArgumentList.Add('-www')
+        $opensslProc = [Diagnostics.Process]::Start($opensslPsi)
 
         $installed = $false
         try {
@@ -184,7 +216,7 @@ Describe 'install-ca-cert.ps1 (Windows)' {
 
             $psi = [Diagnostics.ProcessStartInfo]@{
                 FileName = 'pwsh'
-                Arguments = "-NoProfile -NonInteractive -Command `"Invoke-WebRequest https://127.0.0.1:$port/ -UseBasicParsing | Out-Null`""
+                Arguments = "-NoProfile -NonInteractive -Command `"Invoke-WebRequest https://127.0.0.1:$port/ | Out-Null`""
                 RedirectStandardOutput = $true; RedirectStandardError = $true
                 UseShellExecute = $false
             }
@@ -197,8 +229,9 @@ Describe 'install-ca-cert.ps1 (Windows)' {
             $p.ExitCode | Should -Be 0
         }
         finally {
-            Stop-Job $job -ErrorAction SilentlyContinue
-            Remove-Job $job -Force -ErrorAction SilentlyContinue
+            if ($null -ne $opensslProc -and -not $opensslProc.HasExited) {
+                try { $opensslProc.Kill(); $opensslProc.WaitForExit() } catch { }
+            }
             if ($installed) {
                 $thumb = (New-Object Security.Cryptography.X509Certificates.X509Certificate2 $script:HttpsCaFile).Thumbprint
                 $store = [Security.Cryptography.X509Certificates.X509Store]::new('Root', 'LocalMachine')
