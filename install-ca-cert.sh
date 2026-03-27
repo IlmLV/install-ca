@@ -27,12 +27,12 @@ for arg in "$@"; do
   esac
 done
 
-SCRIPT_DIR="$(mktemp -d)"
+WORK_DIR="$(mktemp -d)"
 SYSTEM_CA_DIR="/usr/local/share/ca-certificates"
 
 cleanup() {
-  if [[ -n "${SCRIPT_DIR:-}" && -d "$SCRIPT_DIR" ]]; then
-    rm -rf "$SCRIPT_DIR"
+  if [[ -n "${WORK_DIR:-}" && -d "$WORK_DIR" ]]; then
+    rm -rf "$WORK_DIR"
   fi
 }
 
@@ -106,7 +106,7 @@ fi
 
 # ── 2. Fetch or copy the CA certificate ───────────────────────────────────────
 
-CA_FILE="$SCRIPT_DIR/ca.crt"
+CA_FILE="$WORK_DIR/ca.crt"
 
 if [[ "$CA_SOURCE" =~ ^https?:// ]]; then
   echo "==> Fetching CA certificate from $CA_SOURCE ..."
@@ -133,9 +133,9 @@ fi
 echo "    $(openssl x509 -in "$CA_FILE" -noout -subject -enddate | tr '\n' '  ')"
 
 # Derive CA_NAME from the certificate CN, fall back to full subject
-CA_CN=$(openssl x509 -in "$CA_FILE" -noout -subject 2>/dev/null \
-        | sed 's/.*CN\s*=\s*//' | sed 's/,.*//')
-CA_NAME="${CA_CN:-$(openssl x509 -in "$CA_FILE" -noout -subject 2>/dev/null)}"
+CA_SUBJECT=$(openssl x509 -in "$CA_FILE" -noout -subject 2>/dev/null)
+CA_CN=$(printf '%s' "$CA_SUBJECT" | sed 's/.*CN\s*=\s*//' | sed 's/,.*//')
+CA_NAME="${CA_CN:-$CA_SUBJECT}"
 
 # Derive a safe filename from CA_NAME
 CA_FILENAME="$(echo "$CA_NAME" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed 's/-\+/-/g; s/^-//; s/-$//').crt"

@@ -49,6 +49,33 @@ pick_firefox_deb_bin() {
     return 1
 }
 
+pick_chromium_deb_bin() {
+    local candidate
+    for candidate in chromium chromium-browser; do
+        command -v "$candidate" >/dev/null 2>&1 || continue
+        is_snap_stub "$candidate" && continue
+        echo "$candidate"
+        return 0
+    done
+    return 1
+}
+
+pick_edge_bin() {
+    local candidate
+    for candidate in microsoft-edge microsoft-edge-stable; do
+        command -v "$candidate" >/dev/null 2>&1 && echo "$candidate" && return 0
+    done
+    return 1
+}
+
+pick_brave_bin() {
+    local candidate
+    for candidate in brave-browser brave; do
+        command -v "$candidate" >/dev/null 2>&1 && echo "$candidate" && return 0
+    done
+    return 1
+}
+
 run_headless() {
     local label="$1"; shift
     run_timeout "$@"
@@ -123,16 +150,13 @@ teardown() {
 }
 
 @test "Chromium headless loads HTTPS page after trust install" {
-    if command -v chromium >/dev/null 2>&1; then
-        bin="chromium"
-    elif command -v chromium-browser >/dev/null 2>&1; then
-        bin="chromium-browser"
-    else
-        echo "chromium not installed"
-        return 1
-    fi
-    if is_snap_stub "$bin"; then
-        echo "chromium deb not installed (snap stub detected)"
+    local bin
+    if ! bin="$(pick_chromium_deb_bin)"; then
+        if command -v chromium >/dev/null 2>&1 || command -v chromium-browser >/dev/null 2>&1; then
+            echo "chromium deb not installed (snap stub detected)"
+        else
+            echo "chromium not installed"
+        fi
         return 1
     fi
     install_https_ca
@@ -141,11 +165,8 @@ teardown() {
 }
 
 @test "Microsoft Edge headless loads HTTPS page after trust install" {
-    if command -v microsoft-edge >/dev/null 2>&1; then
-        bin="microsoft-edge"
-    elif command -v microsoft-edge-stable >/dev/null 2>&1; then
-        bin="microsoft-edge-stable"
-    else
+    local bin
+    if ! bin="$(pick_edge_bin)"; then
         echo "microsoft-edge not installed"
         return 1
     fi
@@ -155,11 +176,8 @@ teardown() {
 }
 
 @test "Brave headless loads HTTPS page after trust install" {
-    if command -v brave-browser >/dev/null 2>&1; then
-        bin="brave-browser"
-    elif command -v brave >/dev/null 2>&1; then
-        bin="brave"
-    else
+    local bin
+    if ! bin="$(pick_brave_bin)"; then
         echo "brave not installed"
         return 1
     fi

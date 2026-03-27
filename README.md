@@ -15,7 +15,7 @@ A cross-platform utility for installing a custom CA certificate into the OS syst
 - Accepts a CA certificate as a **URL** or **local file path** — or prompts interactively
 - Derives the CA name and system filename automatically from the certificate subject
 - **Compares the remote certificate against the currently installed one** before making any changes — shows fingerprint and expiry of both, reports whether an update is needed
-- Exits early without changes if the certificate is already up-to-date (override with `--force` / `-Force`)
+- Exits early without changes if the certificate is already up-to-date (override with `--force` / `-f` / `-Force`)
 - Installs into **all relevant trust stores** in a single run — OS store and per-browser stores
 - Prompts for confirmation before each store is modified
 - Verifies the installation at the end
@@ -86,7 +86,7 @@ irm https://raw.githubusercontent.com/IlmLV/install-ca-cert/main/install-ca-cert
 ### Linux
 
 ```bash
-bash install-ca-cert.sh
+bash install-ca-cert.sh [CA-URL-or-path] [--force|-f]
 ```
 
 `sudo` access is required for writing to `/usr/local/share/ca-certificates/` and running `update-ca-certificates`. The script will prompt for your password at that step.
@@ -96,7 +96,7 @@ bash install-ca-cert.sh
 Open PowerShell **as Administrator**, then:
 
 ```powershell
-powershell -File install-ca-cert.ps1
+powershell -File install-ca-cert.ps1 [-CASource <url-or-path>] [-Force]
 ```
 
 > **Note:** The system certificate store step is skipped if the script is not running as Administrator. The Firefox step does not require elevation.
@@ -140,9 +140,39 @@ Firefox maintains its own NSS databases independent of the OS store. All profile
 
 ## Files
 
-| File                  | Description                   |
-| --------------------- | ----------------------------- |
-| `install-ca-cert.sh`  | Bash script for Linux         |
-| `install-ca-cert.ps1` | PowerShell script for Windows |
+| File                          | Description                                                     |
+| ----------------------------- | --------------------------------------------------------------- |
+| `install-ca-cert.sh`          | Bash script for Linux                                           |
+| `install-ca-cert.ps1`         | PowerShell script for Windows                                   |
+| `tests/run-tests.sh`          | Runs Docker-containerized test suites                           |
+| `tests/linux.bats`            | Bats test suite for `install-ca-cert.sh`                        |
+| `tests/windows.ps1`           | Pester test suite for `install-ca-cert.ps1`                     |
+| `tests/Dockerfile.debian`     | Debian test container image                                     |
+| `tests/Dockerfile.ubuntu`     | Ubuntu test container image                                     |
+| `tests/docker-linux-setup.sh` | Installs browsers and tooling inside the test container         |
+| `tests/entrypoint.linux.sh`   | Container entry point — generates certs and runs the Bats suite |
+| `tests/generate-certs.sh`     | Generates test certificates at runtime (Bash)                   |
+| `tests/generate-certs.ps1`    | Generates test certificates at runtime (PowerShell)             |
 
 > During execution, the scripts create temporary `ca.crt` files in system-specific temporary directories (for example, via `mktemp` on Linux and the OS temp directory on Windows). These temporary files are cleaned up automatically when the scripts complete.
+
+---
+
+## Running tests
+
+Tests are containerized and require Docker.
+
+```bash
+# Run all suites (Debian + Ubuntu)
+bash tests/run-tests.sh
+
+# Run a specific suite
+bash tests/run-tests.sh linux-ubuntu
+bash tests/run-tests.sh linux-debian
+```
+
+On Windows, [Pester](https://pester.dev) is required:
+
+```powershell
+Invoke-Pester tests/windows.ps1
+```

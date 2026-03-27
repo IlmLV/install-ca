@@ -102,7 +102,7 @@ function Add-ToNssDb([string]$CertUtil, [string]$DbDir) {
 }
 
 # ── 1. Resolve CA source ──────────────────────────────────────────────────────
-
+try {
 if (-not [string]::IsNullOrWhiteSpace($CASource)) {
     $CA_SOURCE = $CASource
 } else {
@@ -336,3 +336,6 @@ if ($found) {
 
 Write-Host ""
 Write-Host "==> All done. Fully quit and restart any open browsers for changes to take effect."
+} finally {
+    Remove-Item $CA_FILE -Force -ErrorAction SilentlyContinue
+}
