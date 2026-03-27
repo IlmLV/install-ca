@@ -147,4 +147,4 @@ Firefox maintains its own NSS databases independent of the OS store. All profile
 | `install-ca-cert.sh`  | Bash script for Linux         |
 | `install-ca-cert.ps1` | PowerShell script for Windows |
 
-> The scripts write a temporary `ca.crt` file to their own directory during execution. This file is listed in `.gitignore`.
+> During execution, the scripts create temporary `ca.crt` files in system-specific temporary directories (for example, via `mktemp` on Linux and the OS temp directory on Windows). These temporary files are cleaned up automatically when the scripts complete.
