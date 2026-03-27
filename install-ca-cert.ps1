@@ -51,60 +51,32 @@ $caFileName = "ca_{0}.crt" -f ([guid]::NewGuid().ToString("N"))
 $CA_FILE = Join-Path $tempDir $caFileName
 
 # ── Ctrl+C handler ────────────────────────────────────────────────────────────
-$originalTreatControlCAsInput = [Console]::TreatControlCAsInput
-[Console]::TreatControlCAsInput = $false
-$cancelKeyPressSubscription = Register-ObjectEvent -InputObject ([Console]) -EventName CancelKeyPress -Action {
-    Write-Host ""
-    Write-Host "Interrupted — exiting."
-    Remove-Item $Event.MessageData -Force -ErrorAction SilentlyContinue
-    [Environment]::Exit(130)
-} -MessageData $CA_FILE
-
+# Initialise to safe defaults so the finally block can reference these variables
+# even if console setup fails (e.g., non-interactive/headless environments).
+$originalTreatControlCAsInput = $false
+$cancelKeyPressSubscription   = $null
 try {
-    # ── Helpers ───────────────────────────────────────────────────────────────
+    $originalTreatControlCAsInput = [Console]::TreatControlCAsInput
+    [Console]::TreatControlCAsInput = $false
+    $cancelKeyPressSubscription = Register-ObjectEvent -InputObject ([Console]) -EventName CancelKeyPress -Action {
+        Write-Host ""
+        Write-Host "Interrupted — exiting."
+        Remove-Item -LiteralPath $Event.MessageData -Force -ErrorAction SilentlyContinue
+        [Environment]::Exit(130)
+    } -MessageData $CA_FILE
+} catch {
+    # Console not available (non-interactive or redirected I/O) — skip Ctrl+C handler.
+}
 
-    function Confirm-Action([string]$Prompt) {
-        if ($Yes) {
-            Write-Host "$Prompt [y/N] y"
-            return $true
-        }
-        $reply = Read-Host "$Prompt [y/N]"
-        return $reply -match '^[Yy]$'
-    }
+# ── Helpers ───────────────────────────────────────────────────────────────
 
-    function Test-Admin {
-        if (-not $IsWindowsPlatform) { return $false }
-        try {
-            $id = [System.Security.Principal.WindowsIdentity]::GetCurrent()
-            $principal = New-Object System.Security.Principal.WindowsPrincipal($id)
-            return $principal.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)
-        } catch {
-            return $false
-        }
+function Confirm-Action([string]$Prompt) {
+    if ($Yes) {
+        Write-Host "$Prompt [y/N] y"
+        return $true
     }
-    [...]
-} finally {
-    # Restore original console Ctrl+C behavior
-    try {
-        [Console]::TreatControlCAsInput = $originalTreatControlCAsInput
-    } catch {
-        # Ignore failures restoring console state
-    }
-
-    # Unregister the CancelKeyPress event and remove its job
-    if ($null -ne $cancelKeyPressSubscription) {
-        try {
-            Unregister-Event -SourceIdentifier $cancelKeyPressSubscription.Name -ErrorAction SilentlyContinue
-        } catch {
-            # Ignore failures unregistering event
-        }
-
-        try {
-            Remove-Job -Id $cancelKeyPressSubscription.Id -Force -ErrorAction SilentlyContinue
-        } catch {
-            # Ignore failures removing job
-        }
-    }
+    $reply = Read-Host "$Prompt [y/N]"
+    return $reply -match '^[Yy]$'
 }
 
 # Download without validating server TLS (the CA is not yet trusted)
@@ -139,13 +111,14 @@ public class TrustAllCerts {
 }
 
 # Add CA to a single NSS sql: database directory using Firefox's certutil.exe
-function Add-ToNssDb([string]$CertUtil, [string]$DbDir) {
-    & $CertUtil -d "sql:$DbDir" -D -n $CA_NAME 2>$null
-    & $CertUtil -d "sql:$DbDir" -A -n $CA_NAME -t "CT,," -i $CA_FILE
+function Add-ToNssDb([string]$CertUtil, [string]$DbDir, [string]$CaName, [string]$CaFile) {
+    & $CertUtil -d "sql:$DbDir" -D -n $CaName 2>$null
+    & $CertUtil -d "sql:$DbDir" -A -n $CaName -t "CT,," -i $CaFile
     if ($LASTEXITCODE -ne 0) { throw "certutil failed for $DbDir" }
 }
 
 # ── 1. Resolve CA source ──────────────────────────────────────────────────────
+$cert = $null
 try {
 if (-not [string]::IsNullOrWhiteSpace($CASource)) {
     $CA_SOURCE = $CASource
@@ -181,7 +154,7 @@ if ($CA_SOURCE -match '^https?://') {
     }
 } else {
     Write-Host "==> Copying CA certificate from $CA_SOURCE ..."
-    Copy-Item -Path $CA_SOURCE -Destination $CA_FILE -Force
+    Copy-Item -LiteralPath $CA_SOURCE -Destination $CA_FILE -Force
 }
 
 try {
@@ -208,8 +181,11 @@ if (-not $IsWindowsPlatform) {
 
         Write-Host ""
         Write-Host "==> Linux system trust store (test mode)"
-        Copy-Item -Path $CA_FILE -Destination $systemCaFile -Force
-        & update-ca-certificates | Out-Null
+        Copy-Item -LiteralPath $CA_FILE -Destination $systemCaFile -Force
+        $ucOutput = & update-ca-certificates 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            Write-Error "update-ca-certificates failed (exit $LASTEXITCODE): $ucOutput" -ErrorAction Continue
+        }
         Write-Host "    Installed: $systemCaFile"
     } else {
         Write-Host ""
@@ -230,9 +206,13 @@ $checkStore = [System.Security.Cryptography.X509Certificates.X509Store]::new(
     [System.Security.Cryptography.X509Certificates.StoreLocation]::LocalMachine
 )
 $checkStore.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadOnly)
-$existing = @($checkStore.Certificates | Where-Object { $_.Subject -eq $cert.Subject }) |
-            Sort-Object NotAfter -Descending | Select-Object -First 1
-$checkStore.Close()
+$existing = $null
+try {
+    $existing = @($checkStore.Certificates | Where-Object { $_.Subject -eq $cert.Subject }) |
+                Sort-Object NotAfter -Descending | Select-Object -First 1
+} finally {
+    $checkStore.Close()
+}
 
 if ($existing) {
     Write-Host "    Found    : $($existing.Thumbprint)"
@@ -269,17 +249,17 @@ Write-Host ""
 Write-Host "==> Windows Certificate Store — LocalMachine\Root"
 Write-Host "    (covers Chrome, Edge, Brave, Chromium)"
 
-if (-not (Test-Admin)) {
-    Write-Warning "    Not running as Administrator — skipping system store."
-    Write-Warning "    Re-run the script as Administrator to install the system-wide cert."
-} elseif (Confirm-Action "    Add '$CA_NAME' to the Windows Root CA store?") {
+if (Confirm-Action "    Add '$CA_NAME' to the Windows Root CA store?") {
     $store = [System.Security.Cryptography.X509Certificates.X509Store]::new(
         [System.Security.Cryptography.X509Certificates.StoreName]::Root,
         [System.Security.Cryptography.X509Certificates.StoreLocation]::LocalMachine
     )
     $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
-    $store.Add($cert)
-    $store.Close()
+    try {
+        $store.Add($cert)
+    } finally {
+        $store.Close()
+    }
     Write-Host "    Done."
 } else {
     Write-Host "    Skipped."
@@ -290,7 +270,7 @@ if (-not (Test-Admin)) {
 #  Two approaches, tried in order:
 #   a) certutil.exe (ships with most Firefox installs) — updates the NSS cert9.db directly.
 #   b) ImportEnterpriseRoots policy — a registry key that tells Firefox to delegate
-#      trust to the Windows Certificate Store.  Requires Admin; no certutil needed.
+#      trust to the Windows Certificate Store.
 
 Write-Host ""
 Write-Host "==> Firefox"
@@ -332,7 +312,7 @@ if ($hasEnterpriseRoots) {
 
             if (Confirm-Action "    Add '$CA_NAME' to the above Firefox profiles?") {
                 foreach ($db in $ffDirs) {
-                    Add-ToNssDb -CertUtil $certutil -DbDir $db
+                    Add-ToNssDb -CertUtil $certutil -DbDir $db -CaName $CA_NAME -CaFile $CA_FILE
                     Write-Host "    OK: $db"
                 }
             } else {
@@ -344,10 +324,7 @@ if ($hasEnterpriseRoots) {
         Write-Host "    certutil.exe not found in Firefox install directories."
         Write-Host "    Falling back to ImportEnterpriseRoots policy (makes Firefox trust the Windows store)."
 
-        if (-not (Test-Admin)) {
-            Write-Warning "    Not running as Administrator — cannot write registry policy."
-            Write-Warning "    Re-run as Administrator to enable Firefox Windows trust store integration."
-        } elseif (Confirm-Action "    Set ImportEnterpriseRoots policy so Firefox trusts the Windows store?") {
+        if (Confirm-Action "    Set ImportEnterpriseRoots policy so Firefox trusts the Windows store?") {
             if (-not (Test-Path $ffCertRegKey)) {
                 New-Item -Path $ffCertRegKey -Force | Out-Null
             }
@@ -369,8 +346,12 @@ $verifyStore = [System.Security.Cryptography.X509Certificates.X509Store]::new(
     [System.Security.Cryptography.X509Certificates.StoreLocation]::LocalMachine
 )
 $verifyStore.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadOnly)
-$found = $verifyStore.Certificates | Where-Object { $_.Thumbprint -eq $cert.Thumbprint }
-$verifyStore.Close()
+$found = $null
+try {
+    $found = $verifyStore.Certificates | Where-Object { $_.Thumbprint -eq $cert.Thumbprint }
+} finally {
+    $verifyStore.Close()
+}
 
 if ($found) {
     Write-Host "    System trust: OK (found in LocalMachine\Root)"
@@ -381,33 +362,28 @@ if ($found) {
 Write-Host ""
 Write-Host "==> All done. Fully quit and restart any open browsers for changes to take effect."
 } finally {
-    # Restore console Ctrl+C behavior if it was changed during script execution
     try {
-        [Console]::TreatControlCAsInput = $false
+        [Console]::TreatControlCAsInput = $originalTreatControlCAsInput
     } catch {
-        # Ignore any errors when restoring console state
+        # Ignore failures restoring console state
     }
 
-    # Unregister any CancelKeyPress event handlers and remove associated jobs
-    try {
-        Get-EventSubscriber -SourceIdentifier ConsoleCancelKeyPress -ErrorAction SilentlyContinue |
-            ForEach-Object {
-                try {
-                    Unregister-Event -SourceIdentifier $_.SourceIdentifier -ErrorAction SilentlyContinue
-                } catch {
-                    # Ignore failures when unregistering events
-                }
-
-                if ($_.Action -and $_.Action.Job) {
-                    try {
-                        Remove-Job -Id $_.Action.Job.Id -Force -ErrorAction SilentlyContinue
-                    } catch {
-                        # Ignore failures when removing jobs
-                    }
-                }
-            }
-    } catch {
-        # Ignore failures when querying event subscribers
+    if ($null -ne $cancelKeyPressSubscription) {
+        try {
+            Unregister-Event -SourceIdentifier $cancelKeyPressSubscription.Name -ErrorAction SilentlyContinue
+        } catch {
+            # Ignore failures unregistering event
+        }
+        try {
+            Remove-Job -Id $cancelKeyPressSubscription.Id -Force -ErrorAction SilentlyContinue
+        } catch {
+            # Ignore failures removing job
+        }
     }
-    Remove-Item $CA_FILE -Force -ErrorAction SilentlyContinue
+
+    if ($null -ne $cert) {
+        try { $cert.Dispose() } catch { }
+    }
+
+    Remove-Item -LiteralPath $CA_FILE -Force -ErrorAction SilentlyContinue
 }
