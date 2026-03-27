@@ -16,6 +16,18 @@
 
 set -euo pipefail
 
+# ── Argument parsing ──────────────────────────────────────────────────────────
+FORCE=false
+CA_SOURCE_ARG=""
+
+for arg in "$@"; do
+  case "$arg" in
+    --force|-f) FORCE=true ;;
+    --*) echo "ERROR: Unknown option: $arg" >&2; exit 1 ;;
+    *) CA_SOURCE_ARG="$arg" ;;
+  esac
+done
+
 SCRIPT_DIR="$(mktemp -d)"
 SYSTEM_CA_DIR="/usr/local/share/ca-certificates"
 

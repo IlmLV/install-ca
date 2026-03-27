@@ -2,8 +2,8 @@
 # Tests for install-ca-cert.sh
 
 SCRIPT="/workspace/install-ca-cert.sh"
-CERT="/workspace/tests/fixtures/test-ca.crt"
-HTTPS_CA="/workspace/tests/fixtures/https-ca.crt"
+CERT="${TEST_CERT:-/workspace/tests/runtime-certs/test-ca.crt}"
+HTTPS_CA="${HTTPS_CA:-/workspace/tests/runtime-certs/https-ca.crt}"
 SYSTEM_CA_DIR="/usr/local/share/ca-certificates"
 SHARED_NSS_DIR="$HOME/.pki/nssdb"
 BRAVE_NSS_DIR="$HOME/snap/brave/current/.pki/nssdb"

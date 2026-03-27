@@ -5,9 +5,24 @@
 # a child pwsh process.
 
 BeforeAll {
-    $RepoRoot   = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
+    $RepoRoot   = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
     $ScriptPath = Join-Path $RepoRoot 'install-ca-cert.ps1'
-    $script:CertFile = Join-Path $RepoRoot 'tests\fixtures\test-ca.crt'
+
+    # Generate a throwaway test CA certificate at runtime (no static fixture keys in-repo)
+    $script:TmpCertDir = Join-Path ([IO.Path]::GetTempPath()) "test-certs-$([guid]::NewGuid().ToString('N'))"
+    New-Item -ItemType Directory -Path $script:TmpCertDir -Force | Out-Null
+    $script:CertFile = Join-Path $script:TmpCertDir "test-ca.crt"
+
+    $testCert = New-SelfSignedCertificate `
+        -Subject "CN=Test CA, O=Test Org" `
+        -CertStoreLocation "Cert:\CurrentUser\My" `
+        -NotAfter (Get-Date).AddYears(10)
+    $certBytes = $testCert.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert)
+    $b64 = [Convert]::ToBase64String($certBytes, 'InsertLineBreaks')
+    Set-Content -Path $script:CertFile `
+        -Value "-----BEGIN CERTIFICATE-----`n$b64`n-----END CERTIFICATE-----" `
+        -Encoding ASCII
+    Remove-Item "Cert:\CurrentUser\My\$($testCert.Thumbprint)" -Force -ErrorAction SilentlyContinue
 
     # Strip #Requires (unsupported when inlined) — done once for all tests
     $script:RawScript = (Get-Content $ScriptPath -Raw) `
@@ -48,6 +63,12 @@ $($script:RawScript)
     }
 }
 
+AfterAll {
+    if ($script:TmpCertDir -and (Test-Path $script:TmpCertDir)) {
+        Remove-Item $script:TmpCertDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
 Describe 'install-ca-cert.ps1 (Windows)' {
 
     It 'empty input exits with error' {
@@ -63,16 +84,27 @@ Describe 'install-ca-cert.ps1 (Windows)' {
     }
 
     It 'HTTP URL: fetches cert over plain HTTP' {
-        $fixtures = Join-Path $RepoRoot 'tests\fixtures'
-        $job = Start-Job {
-            param($dir)
-            python -m http.server 8081 --bind 127.0.0.1 --directory $dir
-        } -ArgumentList $fixtures
-        Start-Sleep -Milliseconds 800
+        # Discover an ephemeral free port on localhost
+        $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0)
+        $listener.Start()
+        $port = ($listener.LocalEndpoint).Port
+        $listener.Stop()
 
-        $r = Invoke-WithInput @('http://127.0.0.1:8081/test-ca.crt')
-        Stop-Job $job -Force; Remove-Job $job -Force
-        $r.ExitCode | Should -Be 0
-        $r.Output   | Should -Match 'CA Name\s+:\s+Test CA'
+        $job = Start-Job {
+            param($dir, $port)
+            python -m http.server $port --bind 127.0.0.1 --directory $dir
+        } -ArgumentList $script:TmpCertDir, $port
+
+        try {
+            Start-Sleep -Milliseconds 800
+
+            $r = Invoke-WithInput @("http://127.0.0.1:$port/test-ca.crt")
+            $r.ExitCode | Should -Be 0
+            $r.Output   | Should -Match 'CA Name\s+:\s+Test CA'
+        }
+        finally {
+            Stop-Job $job -Force -ErrorAction SilentlyContinue
+            Remove-Job $job -Force -ErrorAction SilentlyContinue
+        }
     }
 }

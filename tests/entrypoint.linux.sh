@@ -1,9 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+CERTS_DIR="/workspace/tests/runtime-certs"
+
+# Generate all test certificates at runtime
+bash /workspace/tests/generate-certs.sh "$CERTS_DIR"
+
+# Export paths for BATS tests
+export TEST_CERT="$CERTS_DIR/test-ca.crt"
+export HTTPS_CA="$CERTS_DIR/https-ca.crt"
+
 openssl s_server -quiet -accept 8443 \
-  -cert /workspace/tests/fixtures/https-server.crt \
-  -key /workspace/tests/fixtures/https-server.key \
+  -cert "$CERTS_DIR/https-server.crt" \
+  -key "$CERTS_DIR/https-server.key" \
   -www >/dev/null 2>&1 &
 https_pid=$!
 
