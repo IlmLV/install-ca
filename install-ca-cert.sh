@@ -120,7 +120,9 @@ find_nss_dbs() {
 if [[ -n "$CA_SOURCE_ARG" ]]; then
   CA_SOURCE="$CA_SOURCE_ARG"
 else
-  read -r -p "Enter CA certificate URL or file path: " CA_SOURCE
+  if ! read -r -p "Enter CA certificate URL or file path: " CA_SOURCE; then
+    CA_SOURCE=""
+  fi
 fi
 
 if [[ -z "$CA_SOURCE" ]]; then

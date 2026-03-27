@@ -224,8 +224,12 @@ Describe 'install-ca-cert.ps1 (Windows)' {
             $stdoutTask = $p.StandardOutput.ReadToEndAsync()
             $stderrTask = $p.StandardError.ReadToEndAsync()
             $fin = $p.WaitForExit($script:CmdTimeoutMs)
-            [void]$stdoutTask.Result; [void]$stderrTask.Result
-            if (-not $fin) { $p.Kill(); $p.WaitForExit() }
+            if (-not $fin) {
+                try { $p.Kill() } catch { }
+                $p.WaitForExit()
+            }
+            [void]$stdoutTask.GetAwaiter().GetResult()
+            [void]$stderrTask.GetAwaiter().GetResult()
             $p.ExitCode | Should -Be 0
         }
         finally {
