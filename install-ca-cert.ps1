@@ -10,9 +10,14 @@
 #   - Chromium             uses Windows Certificate Store
 #   - Firefox              cert9.db via certutil.exe, or ImportEnterpriseRoots registry policy
 #
-# Usage: irm https://raw.githubusercontent.com/IlmLV/install-ca-cert/main/install-ca-cert.ps1 | iex
-#   or:  powershell -File install-ca-cert.ps1
+# Usage: powershell -File install-ca-cert.ps1 [-CASource <url-or-path>] [-Force]
+#   or:  irm https://raw.githubusercontent.com/IlmLV/install-ca-cert/main/install-ca-cert.ps1 | iex
 # Note:  Must be run as Administrator for the system trust store step.
+
+param(
+    [string]$CASource = "",
+    [switch]$Force
+)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
@@ -99,7 +104,11 @@ function Add-ToNssDb([string]$CertUtil, [string]$DbDir) {
 
 # ── 1. Resolve CA source ──────────────────────────────────────────────────────
 
-$CA_SOURCE = Read-Host "Enter CA certificate URL or file path"
+if (-not [string]::IsNullOrWhiteSpace($CASource)) {
+    $CA_SOURCE = $CASource
+} else {
+    $CA_SOURCE = Read-Host "Enter CA certificate URL or file path"
+}
 
 if ([string]::IsNullOrWhiteSpace($CA_SOURCE)) {
     Write-Error "No CA source provided." -ErrorAction Continue
@@ -111,7 +120,22 @@ if ([string]::IsNullOrWhiteSpace($CA_SOURCE)) {
 Write-Host ""
 if ($CA_SOURCE -match '^https?://') {
     Write-Host "==> Fetching CA certificate from $CA_SOURCE ..."
-    Invoke-InsecureDownload -Uri $CA_SOURCE -OutFile $CA_FILE
+    $downloadOk = $false
+    try {
+        Invoke-WebRequest -Uri $CA_SOURCE -OutFile $CA_FILE -UseBasicParsing
+        $downloadOk = $true
+    } catch {
+        Write-Host "    WARNING: Secure download failed. The server's TLS certificate may be invalid or self-signed."
+        Write-Host "    Detail  : $($_.Exception.Message)"
+    }
+    if (-not $downloadOk) {
+        if (Confirm-Action "    Retry without TLS certificate validation (insecure)?") {
+            Invoke-InsecureDownload -Uri $CA_SOURCE -OutFile $CA_FILE
+        } else {
+            Write-Error "Download aborted." -ErrorAction Continue
+            exit 1
+        }
+    }
 } else {
     Write-Host "==> Copying CA certificate from $CA_SOURCE ..."
     Copy-Item -Path $CA_SOURCE -Destination $CA_FILE -Force
@@ -174,8 +198,12 @@ if ($existing) {
     Write-Host "    expires  : $($cert.NotAfter)"
 
     if ($existing.Thumbprint -eq $cert.Thumbprint) {
-        Write-Host "    Status   : Already up-to-date (same certificate). Nothing to do."
-        exit 0
+        if ($Force) {
+            Write-Host "    Status   : Already up-to-date but -Force was specified, continuing."
+        } else {
+            Write-Host "    Status   : Already up-to-date (same certificate). Nothing to do."
+            exit 0
+        }
     } elseif ($cert.NotAfter -gt $existing.NotAfter) {
         $days = [int]($cert.NotAfter - $existing.NotAfter).TotalDays
         Write-Host "    Status   : Remote certificate is newer by $days day(s) — update recommended."

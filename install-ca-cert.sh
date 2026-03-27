@@ -11,7 +11,7 @@
 #   - Firefox (deb/non-snap)      per-profile cert9.db under ~/.mozilla/firefox/
 #   - Firefox (snap)              per-profile cert9.db under ~/snap/firefox/
 #
-# Usage: bash install-ca-cert.sh
+# Usage: bash install-ca-cert.sh [CA-URL-or-path] [--force|-f]
 #   or:  bash <(curl -fsSL https://raw.githubusercontent.com/IlmLV/install-ca-cert/main/install-ca-cert.sh)
 
 set -euo pipefail
@@ -94,7 +94,11 @@ find_nss_dbs() {
 
 # ── 1. Resolve CA source ──────────────────────────────────────────────────────
 
-read -r -p "Enter CA certificate URL or file path: " CA_SOURCE
+if [[ -n "$CA_SOURCE_ARG" ]]; then
+  CA_SOURCE="$CA_SOURCE_ARG"
+else
+  read -r -p "Enter CA certificate URL or file path: " CA_SOURCE
+fi
 
 if [[ -z "$CA_SOURCE" ]]; then
   echo "ERROR: No CA source provided." >&2
@@ -107,7 +111,16 @@ CA_FILE="$SCRIPT_DIR/ca.crt"
 
 if [[ "$CA_SOURCE" =~ ^https?:// ]]; then
   echo "==> Fetching CA certificate from $CA_SOURCE ..."
-  curl -sk "$CA_SOURCE" -o "$CA_FILE"
+  if ! curl_err=$(curl -fsSL "$CA_SOURCE" -o "$CA_FILE" 2>&1); then
+    echo "    WARNING: Secure download failed. The server's TLS certificate may be invalid or self-signed."
+    echo "    Detail  : $curl_err"
+    if confirm "    Retry without TLS certificate validation (insecure)?"; then
+      curl -kfsSL "$CA_SOURCE" -o "$CA_FILE"
+    else
+      echo "ERROR: Download aborted." >&2
+      exit 1
+    fi
+  fi
 else
   echo "==> Copying CA certificate from $CA_SOURCE ..."
   cp "$CA_SOURCE" "$CA_FILE"
@@ -152,8 +165,12 @@ if [[ -f "$SYSTEM_CA_FILE" ]]; then
   echo "    expires  : $remote_end"
 
   if [[ "$existing_fp" == "$remote_fp" ]]; then
-    echo "    Status   : Already up-to-date (same certificate). Nothing to do."
-    exit 0
+    if [[ "$FORCE" == true ]]; then
+      echo "    Status   : Already up-to-date but --force was specified, continuing."
+    else
+      echo "    Status   : Already up-to-date (same certificate). Nothing to do."
+      exit 0
+    fi
   elif (( remote_ts > existing_ts )); then
     days=$(( (remote_ts - existing_ts) / 86400 ))
     echo "    Status   : Remote certificate is newer by $days day(s) — update recommended."

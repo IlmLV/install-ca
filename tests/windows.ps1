@@ -8,25 +8,15 @@ BeforeAll {
     $RepoRoot   = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
     $ScriptPath = Join-Path $RepoRoot 'install-ca-cert.ps1'
 
-    # Generate a throwaway test CA certificate at runtime (no static fixture keys in-repo)
+    # Generate test certificates via the dedicated script (cert gen is not inline here)
     $script:TmpCertDir = Join-Path ([IO.Path]::GetTempPath()) "test-certs-$([guid]::NewGuid().ToString('N'))"
-    New-Item -ItemType Directory -Path $script:TmpCertDir -Force | Out-Null
-    $script:CertFile = Join-Path $script:TmpCertDir "test-ca.crt"
+    & (Join-Path $PSScriptRoot 'generate-certs.ps1') -OutputDir $script:TmpCertDir
+    $script:CertFile = Join-Path $script:TmpCertDir 'test-ca.crt'
 
-    $testCert = New-SelfSignedCertificate `
-        -Subject "CN=Test CA, O=Test Org" `
-        -CertStoreLocation "Cert:\CurrentUser\My" `
-        -NotAfter (Get-Date).AddYears(10)
-    $certBytes = $testCert.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert)
-    $b64 = [Convert]::ToBase64String($certBytes, 'InsertLineBreaks')
-    Set-Content -Path $script:CertFile `
-        -Value "-----BEGIN CERTIFICATE-----`n$b64`n-----END CERTIFICATE-----" `
-        -Encoding ASCII
-    Remove-Item "Cert:\CurrentUser\My\$($testCert.Thumbprint)" -Force -ErrorAction SilentlyContinue
-
-    # Strip #Requires (unsupported when inlined) — done once for all tests
+    # Strip #Requires and param() block (both are invalid when the script is inlined)
     $script:RawScript = (Get-Content $ScriptPath -Raw) `
-        -replace '(?m)^#Requires[^\r\n]*[\r\n]+', ''
+        -replace '(?m)^#Requires[^\r\n]*[\r\n]+', '' `
+        -replace '(?ms)^param\s*\(.*?\)\s*[\r\n]+', ''
 
     function global:Invoke-WithInput([string[]]$Inputs) {
         $inputsJson = $Inputs | ConvertTo-Json -Compress
@@ -48,6 +38,8 @@ if (`$inputs -is [string]) {
 function global:Read-Host { param([string]`$Prompt)
     if (`$global:_Q.Count -gt 0) { return `$global:_Q.Dequeue() }
     return '' }
+`$CASource = ''
+`$Force = `$false
 $($script:RawScript)
 "@
         $psi = [Diagnostics.ProcessStartInfo]@{
