@@ -36,7 +36,7 @@ run_suite() {
     return
   fi
   echo "OK"
-  if docker run --rm "$tag"; then
+  if docker run --rm -t "$tag"; then
     PASS+=("$name")
     echo "run: OK"
   else

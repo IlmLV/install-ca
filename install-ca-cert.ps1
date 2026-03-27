@@ -5,7 +5,6 @@
 #   - System trust store   (Windows Certificate Store — LocalMachine\Root)
 #   - Google Chrome        uses Windows Certificate Store
 #   - Microsoft Edge       uses Windows Certificate Store
-#   - Vivaldi              uses Windows Certificate Store
 #   - Brave                uses Windows Certificate Store
 #   - Chromium             uses Windows Certificate Store
 #   - Firefox              cert9.db via certutil.exe, or ImportEnterpriseRoots registry policy
@@ -220,11 +219,11 @@ if ($existing) {
 # ── 4. System trust store (Windows Certificate Store) ────────────────────────
 #
 #  Adding to LocalMachine\Root covers all Chromium-based browsers on Windows
-#  (Chrome, Edge, Brave, Vivaldi, Chromium) because they delegate to the OS store.
+#  (Chrome, Edge, Brave, Chromium) because they delegate to the OS store.
 
 Write-Host ""
 Write-Host "==> Windows Certificate Store — LocalMachine\Root"
-Write-Host "    (covers Chrome, Edge, Brave, Vivaldi, Chromium)"
+Write-Host "    (covers Chrome, Edge, Brave, Chromium)"
 
 if (-not (Test-Admin)) {
     Write-Warning "    Not running as Administrator — skipping system store."

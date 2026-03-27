@@ -6,7 +6,6 @@
 #   - Google Chrome (deb)         uses shared NSS at ~/.pki/nssdb
 #   - Chromium (deb/snap)         uses shared NSS at ~/.pki/nssdb / snap-isolated .pki/nssdb
 #   - Microsoft Edge (deb)        uses shared NSS at ~/.pki/nssdb
-#   - Vivaldi (deb)               uses shared NSS at ~/.pki/nssdb
 #   - Brave (snap)                snap-isolated .pki/nssdb per version
 #   - Firefox (deb/non-snap)      per-profile cert9.db under ~/.mozilla/firefox/
 #   - Firefox (snap)              per-profile cert9.db under ~/snap/firefox/
@@ -217,7 +216,6 @@ fi
 #    - Google Chrome
 #    - Chromium
 #    - Microsoft Edge
-#    - Vivaldi
 #
 SHARED_NSS="$HOME/.pki/nssdb"
 if [[ ! -d "$SHARED_NSS" ]]; then
@@ -228,7 +226,7 @@ if [[ ! -d "$SHARED_NSS" ]]; then
 fi
 
 install_to_nss_dbs \
-  "Shared NSS database (Google Chrome, Chromium, Edge, Vivaldi — deb installs)" \
+  "Shared NSS database (Google Chrome, Chromium, Edge — deb installs)" \
   "$SHARED_NSS"
 
 # ── 7. Brave (snap) ───────────────────────────────────────────────────────────

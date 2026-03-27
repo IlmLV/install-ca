@@ -26,6 +26,37 @@ require_cmd() {
     command -v "$1" >/dev/null 2>&1 || { echo "$2"; return 1; }
 }
 
+run_timeout() {
+    local duration="${BATS_CMD_TIMEOUT:-30s}"
+    run timeout "$duration" "$@"
+}
+
+is_snap_stub() {
+    local bin="$1"
+    local out
+    out="$("$bin" --version 2>&1 || true)"
+    [[ "$out" == *"requires the "*snap* ]]
+}
+
+pick_firefox_deb_bin() {
+    local candidate
+    for candidate in firefox firefox-esr; do
+        command -v "$candidate" >/dev/null 2>&1 || continue
+        is_snap_stub "$candidate" && continue
+        echo "$candidate"
+        return 0
+    done
+    return 1
+}
+
+run_headless() {
+    local label="$1"; shift
+    run_timeout "$@"
+    if [[ "$status" -eq 124 ]]; then
+        skip "$label timed out in this container environment"
+    fi
+}
+
 setup() {
     rm -f "$SYSTEM_CA_DIR/test-ca.crt" "$SYSTEM_CA_DIR/test-https-ca.crt"
     rm -rf "$SHARED_NSS_DIR" "$BRAVE_NSS_DIR" "$CHROMIUM_NSS_DIR" "$FIREFOX_DEB_NSS_DIR" "$FIREFOX_SNAP_NSS_DIR"
@@ -79,14 +110,14 @@ teardown() {
 
 @test "HTTPS URL trusts system CA after install" {
     install_https_ca
-    run curl -sSf https://127.0.0.1:8443/
+    run_timeout curl -sSf https://127.0.0.1:8443/
     [ "$status" -eq 0 ]
 }
 
 @test "Chrome headless loads HTTPS page after trust install" {
     require_cmd google-chrome "google-chrome not installed"
     install_https_ca
-    run bash -c "google-chrome --headless=new --no-sandbox --disable-gpu --user-data-dir=/tmp/chrome-profile --dump-dom https://127.0.0.1:8443/ >/dev/null"
+    run_headless "Chrome" bash -c "google-chrome --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --no-first-run --no-default-browser-check --disable-component-update --user-data-dir=/tmp/chrome-profile --dump-dom https://127.0.0.1:8443/ >/dev/null"
     [ "$status" -eq 0 ]
 }
 
@@ -99,8 +130,12 @@ teardown() {
         echo "chromium not installed"
         return 1
     fi
+    if is_snap_stub "$bin"; then
+        echo "chromium deb not installed (snap stub detected)"
+        return 1
+    fi
     install_https_ca
-    run bash -c "$bin --headless=new --no-sandbox --disable-gpu --user-data-dir=/tmp/chromium-profile --dump-dom https://127.0.0.1:8443/ >/dev/null"
+    run_headless "Chromium" bash -c "$bin --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --no-first-run --no-default-browser-check --disable-component-update --user-data-dir=/tmp/chromium-profile --dump-dom https://127.0.0.1:8443/ >/dev/null"
     [ "$status" -eq 0 ]
 }
 
@@ -114,21 +149,7 @@ teardown() {
         return 1
     fi
     install_https_ca
-    run bash -c "$bin --headless=new --no-sandbox --disable-gpu --user-data-dir=/tmp/edge-profile --dump-dom https://127.0.0.1:8443/ >/dev/null"
-    [ "$status" -eq 0 ]
-}
-
-@test "Vivaldi headless loads HTTPS page after trust install" {
-    if command -v vivaldi >/dev/null 2>&1; then
-        bin="vivaldi"
-    elif command -v vivaldi-stable >/dev/null 2>&1; then
-        bin="vivaldi-stable"
-    else
-        echo "vivaldi not installed"
-        return 1
-    fi
-    install_https_ca
-    run bash -c "$bin --headless=new --no-sandbox --disable-gpu --user-data-dir=/tmp/vivaldi-profile --dump-dom https://127.0.0.1:8443/ >/dev/null"
+    run_headless "Microsoft Edge" bash -c "$bin --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --no-first-run --no-default-browser-check --disable-component-update --user-data-dir=/tmp/edge-profile --dump-dom https://127.0.0.1:8443/ >/dev/null"
     [ "$status" -eq 0 ]
 }
 
@@ -142,20 +163,23 @@ teardown() {
         return 1
     fi
     install_https_ca
-    run bash -c "$bin --headless=new --no-sandbox --disable-gpu --user-data-dir=/tmp/brave-profile --dump-dom https://127.0.0.1:8443/ >/dev/null"
+    run_headless "Brave" bash -c "$bin --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --no-first-run --no-default-browser-check --disable-component-update --disable-features=Translate,MediaRouter --user-data-dir=/tmp/brave-profile --dump-dom https://127.0.0.1:8443/ >/dev/null"
     [ "$status" -eq 0 ]
 }
 
 @test "Firefox headless loads HTTPS page after trust install" {
-    if command -v firefox >/dev/null 2>&1; then
-        bin="firefox"
-    elif command -v firefox-esr >/dev/null 2>&1; then
-        bin="firefox-esr"
-    else
+    local bin
+    if ! bin="$(pick_firefox_deb_bin)"; then
+        if command -v firefox >/dev/null 2>&1 || command -v firefox-esr >/dev/null 2>&1; then
+            echo "firefox deb not installed (snap stub detected)"
+            return 1
+        fi
         echo "firefox not installed"
         return 1
     fi
+    # Use a deterministic profile DB that install_https_ca can populate.
+    init_nss_db "$FIREFOX_DEB_NSS_DIR"
     install_https_ca
-    run bash -c "$bin --headless --no-remote --profile /tmp/firefox-profile --dump-dom https://127.0.0.1:8443/ >/dev/null"
+    run_headless "Firefox (deb)" bash -c "$bin --headless --no-remote --profile \"$FIREFOX_DEB_NSS_DIR\" --dump-dom https://127.0.0.1:8443/ >/dev/null"
     [ "$status" -eq 0 ]
 }

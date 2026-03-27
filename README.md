@@ -41,7 +41,6 @@ A cross-platform utility for installing a custom CA certificate into the OS syst
 | Chromium (deb)       | Shared NSS at `~/.pki/nssdb`                       |
 | Chromium (snap)      | Snap-isolated NSS under `~/snap/chromium/`         |
 | Microsoft Edge (deb) | Shared NSS at `~/.pki/nssdb`                       |
-| Vivaldi (deb)        | Shared NSS at `~/.pki/nssdb`                       |
 | Brave (snap)         | Snap-isolated NSS under `~/snap/brave/`            |
 | Firefox (deb)        | Per-profile `cert9.db` under `~/.mozilla/firefox/` |
 | Firefox (snap)       | Per-profile `cert9.db` under `~/snap/firefox/`     |
@@ -54,7 +53,6 @@ A cross-platform utility for installing a custom CA certificate into the OS syst
 | -------------- | --------------------------------------------------------- |
 | Google Chrome  | Windows Certificate Store (`LocalMachine\Root`)           |
 | Microsoft Edge | Windows Certificate Store (`LocalMachine\Root`)           |
-| Vivaldi        | Windows Certificate Store (`LocalMachine\Root`)           |
 | Brave          | Windows Certificate Store (`LocalMachine\Root`)           |
 | Chromium       | Windows Certificate Store (`LocalMachine\Root`)           |
 | Firefox        | Per-profile `cert9.db` via Firefox-bundled `certutil.exe` |
