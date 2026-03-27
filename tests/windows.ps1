@@ -1,8 +1,8 @@
 # Pester tests for install-ca-cert.ps1 on Windows runners
 #
-# Read-Host reads from the console host, not stdin, so each test builds a
-# temp script with a queue-backed Read-Host mock prepended and runs it as
-# a child pwsh process.
+# Each test invokes install-ca-cert.ps1 directly as a child pwsh process,
+# passing -CASource / -Yes / -Force as named parameters — the same pattern
+# used by the bash tests (e.g. "bash install-ca-cert.sh -y $CERT").
 
 BeforeAll {
     $RepoRoot   = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
@@ -19,51 +19,48 @@ BeforeAll {
     $script:HttpsServerCrt = Join-Path $script:TmpCertDir 'https-server.crt'
     $script:HttpsServerKey = Join-Path $script:TmpCertDir 'https-server.key'
 
-    # Strip #Requires and param() block (both are invalid when the script is inlined)
-    $script:RawScript = (Get-Content $ScriptPath -Raw) `
-        -replace '(?m)^#Requires[^\r\n]*[\r\n]+', '' `
-        -replace '(?ms)^(?:\s*#.*[\r\n]+|\s*[\r\n]+)*\s*param\s*\(.*?\)\s*[\r\n]+', ''
+    # Invoke install-ca-cert.ps1 directly with named parameters — same pattern as bash tests.
+    # Stdin is redirected and closed immediately so any Read-Host call gets EOF → returns null,
+    # which the script treats as "no input" and exits with error.  Both stdout and stderr are
+    # read asynchronously to avoid the deadlock that sequential ReadToEnd() can cause when the
+    # child process fills one pipe while we are blocked draining the other.
+    function global:Invoke-Script {
+        param(
+            [string]$CASource = '',
+            [switch]$Force,
+            [switch]$Yes
+        )
 
-    function global:Invoke-WithInput([string[]]$Inputs) {
-        $inputsJson = $Inputs | ConvertTo-Json -Compress
+        $argList = [Collections.Generic.List[string]]::new()
+        $argList.Add('-File')
+        $argList.Add($ScriptPath)
+        if ($CASource) { $argList.Add('-CASource'); $argList.Add($CASource) }
+        if ($Force)    { $argList.Add('-Force') }
+        if ($Yes)      { $argList.Add('-Yes') }
 
-        $tmp = Join-Path ([IO.Path]::GetTempPath()) ("{0}.ps1" -f [IO.Path]::GetRandomFileName())
-        Set-Content $tmp @"
-`$global:_Q = [Collections.Generic.Queue[string]]::new()
-`$inputsJson = @'
-$inputsJson
-'@
-`$inputs = `$inputsJson | ConvertFrom-Json
-if (`$inputs -is [string]) {
-    `$global:_Q.Enqueue(`$inputs)
-} else {
-    foreach (`$i in `$inputs) {
-        `$global:_Q.Enqueue([string]`$i)
-    }
-}
-function global:Read-Host { param([string]`$Prompt)
-    if (`$global:_Q.Count -gt 0) { return `$global:_Q.Dequeue() }
-    return '' }
-`$CASource = ''
-`$Force = `$false
-`$Yes = `$false
-$($script:RawScript)
-"@
         $psi = [Diagnostics.ProcessStartInfo]@{
-            FileName = 'pwsh'; Arguments = "-File `"$tmp`""
-            RedirectStandardOutput = $true; RedirectStandardError = $true
-            UseShellExecute = $false
+            FileName               = 'pwsh'
+            RedirectStandardInput  = $true
+            RedirectStandardOutput = $true
+            RedirectStandardError  = $true
+            UseShellExecute        = $false
         }
+        foreach ($a in $argList) { $psi.ArgumentList.Add($a) }
         $p = [Diagnostics.Process]::Start($psi)
-        $out = $p.StandardOutput.ReadToEnd() + $p.StandardError.ReadToEnd()
+        # Always close stdin immediately so any Read-Host call receives EOF and returns null
+        $p.StandardInput.Close()
+        $stdoutTask = $p.StandardOutput.ReadToEndAsync()
+        $stderrTask = $p.StandardError.ReadToEndAsync()
         $finished = $p.WaitForExit($script:CmdTimeoutMs)
         if (-not $finished) {
             $p.Kill()
             $p.WaitForExit()
-            Remove-Item $tmp -Force -ErrorAction SilentlyContinue
+        }
+        # Collect output; use GetAwaiter().GetResult() so individual task exceptions surface cleanly
+        $out = $stdoutTask.GetAwaiter().GetResult() + $stderrTask.GetAwaiter().GetResult()
+        if (-not $finished) {
             return [PSCustomObject]@{ ExitCode = 124; Output = 'Command timed out' }
         }
-        Remove-Item $tmp -Force -ErrorAction SilentlyContinue
         return [PSCustomObject]@{ ExitCode = $p.ExitCode; Output = $out.Trim() }
     }
 }
@@ -77,7 +74,7 @@ AfterAll {
 Describe 'install-ca-cert.ps1 (Windows)' {
 
     It 'empty input exits with error' {
-        $r = Invoke-WithInput @('')
+        $r = Invoke-Script
         $r.ExitCode | Should -Be 1
         $r.Output   | Should -Match 'No CA source provided'
     }
@@ -85,7 +82,7 @@ Describe 'install-ca-cert.ps1 (Windows)' {
     It 'local cert file: installs and verifies' {
         $cert = [Security.Cryptography.X509Certificates.X509Certificate2]::new($script:CertFile)
         try {
-            $r = Invoke-WithInput @($script:CertFile, 'y', 'n')
+            $r = Invoke-Script -CASource $script:CertFile -Yes
             $r.ExitCode | Should -Be 0
             $r.Output   | Should -Match 'CA Name\s+:\s+Test CA'
             $r.Output   | Should -Match 'System trust: OK'
@@ -105,7 +102,7 @@ Describe 'install-ca-cert.ps1 (Windows)' {
         $store.Add($cert)
         $store.Close()
         try {
-            $r = Invoke-WithInput @($script:CertFile)
+            $r = Invoke-Script -CASource $script:CertFile
             $r.ExitCode | Should -Be 0
             $r.Output   | Should -Match 'Already up-to-date'
         }
@@ -179,7 +176,7 @@ Describe 'install-ca-cert.ps1 (Windows)' {
             }
             $sw.Stop()
 
-            $r = Invoke-WithInput @($script:HttpsCaFile, 'y', 'y')
+            $r = Invoke-Script -CASource $script:HttpsCaFile -Yes
             $r.ExitCode | Should -Be 0
             $installed = $true
 
