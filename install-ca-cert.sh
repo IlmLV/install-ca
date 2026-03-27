@@ -155,7 +155,7 @@ echo "    $(openssl x509 -in "$CA_FILE" -noout -subject -enddate | tr '\n' '  ')
 
 # Derive CA_NAME from the certificate CN, fall back to full subject
 CA_SUBJECT=$(openssl x509 -in "$CA_FILE" -noout -subject 2>/dev/null)
-CA_CN=$(printf '%s' "$CA_SUBJECT" | sed 's/.*CN\s*=\s*//' | sed 's/,.*//')
+CA_CN=$(printf '%s' "$CA_SUBJECT" | sed 's/.*CN[[:space:]]*=[[:space:]]*//' | sed 's/,.*//')
 CA_NAME="${CA_CN:-$CA_SUBJECT}"
 
 # Derive a safe filename from CA_NAME

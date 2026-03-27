@@ -12,9 +12,12 @@ New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
 
 # ── Test CA (used by install-ca-cert.ps1 tests) ───────────────────────────────
 $testCert = New-SelfSignedCertificate `
+    -Type Custom `
     -Subject "CN=Test CA, O=Test Org" `
     -CertStoreLocation "Cert:\CurrentUser\My" `
-    -NotAfter (Get-Date).AddYears(1)
+    -NotAfter (Get-Date).AddYears(1) `
+    -KeyUsage CertSign, CRLSign `
+    -TextExtension @("2.5.29.19={critical}{text}CA=true")
 
 $certBytes = $testCert.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert)
 $b64 = [Convert]::ToBase64String($certBytes, 'InsertLineBreaks')
