@@ -243,10 +243,26 @@ if (Confirm-Action "    Add '$CA_NAME' to the Windows Root CA store?") {
     )
     $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
     try {
-        $existingCerts = $store.Certificates | Where-Object { $_.Thumbprint -eq $cert.Thumbprint }
-        if ($existingCerts -and $existingCerts.Count -gt 0) {
+        # First, check for an existing certificate with the same thumbprint
+        $existingThumbprintCerts = $store.Certificates | Where-Object { $_.Thumbprint -eq $cert.Thumbprint }
+        if ($existingThumbprintCerts -and $existingThumbprintCerts.Count -gt 0) {
             Write-Host "    Certificate with the same thumbprint is already present in LocalMachine\Root. Skipping add to avoid duplicate."
         } else {
+            # Optionally clean up older certificates with the same subject but different thumbprints
+            $subjectMatches = $store.Certificates | Where-Object { $_.Subject -eq $cert.Subject }
+            if ($subjectMatches -and $subjectMatches.Count -gt 0) {
+                if ($Force) {
+                    foreach ($old in $subjectMatches) {
+                        if ($old.Thumbprint -ne $cert.Thumbprint) {
+                            Write-Host "    Removing existing certificate with same subject and thumbprint $($old.Thumbprint) from LocalMachine\Root."
+                            $store.Remove($old)
+                        }
+                    }
+                } else {
+                    Write-Host "    Warning: Existing certificate(s) with the same subject are present in LocalMachine\Root."
+                    Write-Host "             To replace older certificates with the new one, re-run this script with -Force."
+                }
+            }
             $store.Add($cert)
             Write-Host "    Done."
         }

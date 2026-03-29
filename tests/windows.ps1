@@ -63,7 +63,8 @@ BeforeAll {
                 # Ignore failures from Kill() in the timeout path (process may have already exited)
             }
             try {
-                $p.WaitForExit()
+                # Use a bounded wait after attempting to kill the process to avoid blocking indefinitely
+                $null = $p.WaitForExit([Math]::Min($script:CmdTimeoutMs, 2000))
             } catch {
                 # Ignore failures from WaitForExit() after attempting to kill the process
             }
