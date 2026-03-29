@@ -187,8 +187,16 @@ $checkStore = [System.Security.Cryptography.X509Certificates.X509Store]::new(
 $checkStore.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadOnly)
 $existing = $null
 try {
-    $existing = @($checkStore.Certificates | Where-Object { $_.Subject -eq $cert.Subject }) |
-                Sort-Object NotAfter -Descending | Select-Object -First 1
+    # Prefer an exact thumbprint match (certificate already installed),
+    # and only fall back to Subject/NotAfter for "newer/older" comparisons.
+    $existing = $checkStore.Certificates |
+                Where-Object { $_.Thumbprint -eq $cert.Thumbprint } |
+                Select-Object -First 1
+
+    if (-not $existing) {
+        $existing = @($checkStore.Certificates | Where-Object { $_.Subject -eq $cert.Subject }) |
+                    Sort-Object NotAfter -Descending | Select-Object -First 1
+    }
 } finally {
     $checkStore.Close()
 }

@@ -55,8 +55,18 @@ BeforeAll {
         $stderrTask = $p.StandardError.ReadToEndAsync()
         $finished = $p.WaitForExit($script:CmdTimeoutMs)
         if (-not $finished) {
-            $p.Kill()
-            $p.WaitForExit()
+            try {
+                if (-not $p.HasExited) {
+                    $p.Kill()
+                }
+            } catch {
+                # Ignore failures from Kill() in the timeout path (process may have already exited)
+            }
+            try {
+                $p.WaitForExit()
+            } catch {
+                # Ignore failures from WaitForExit() after attempting to kill the process
+            }
         }
         # Collect output; use GetAwaiter().GetResult() so individual task exceptions surface cleanly
         $out = $stdoutTask.GetAwaiter().GetResult() + $stderrTask.GetAwaiter().GetResult()
@@ -198,17 +208,22 @@ Describe 'install-ca-cert.ps1 (Windows)' {
 
         $installed = $false
         try {
+            $serverReady = $false
             $sw = [Diagnostics.Stopwatch]::StartNew()
             while ($sw.Elapsed.TotalSeconds -lt 5) {
                 try {
                     $tcp = [Net.Sockets.TcpClient]::new('127.0.0.1', $port)
                     $tcp.Close()
+                    $serverReady = $true
                     break
                 } catch {
                     Start-Sleep -Milliseconds 100
                 }
             }
             $sw.Stop()
+            if (-not $serverReady) {
+                throw "HTTPS test server on port $port was not reachable within $([math]::Round($sw.Elapsed.TotalSeconds, 2)) seconds; aborting test before Invoke-WebRequest."
+            }
 
             $r = Invoke-Script -CASource $script:HttpsCaFile -Yes
             $r.ExitCode | Should -Be 0
