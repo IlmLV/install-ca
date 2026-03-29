@@ -31,7 +31,10 @@ run_openssl req -x509 -newkey rsa:2048 -keyout "$OUT/test-ca.key" \
 # ── 2. HTTPS test CA (signs the local HTTPS test server) ──────────────────────
 run_openssl req -x509 -newkey rsa:2048 -keyout "$OUT/https-ca.key" \
   -out "$OUT/https-ca.crt" -days 365 -nodes \
-  -subj "/CN=Test HTTPS CA"
+  -subj "/CN=Test HTTPS CA" \
+  -addext "basicConstraints=critical,CA:TRUE,pathlen:0" \
+  -addext "keyUsage=critical,keyCertSign,cRLSign" \
+  -addext "subjectKeyIdentifier=hash"
 
 # ── 3. HTTPS test server certificate signed by the HTTPS CA ──────────────────
 run_openssl req -newkey rsa:2048 -keyout "$OUT/https-server.key" \

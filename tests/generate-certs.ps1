@@ -32,7 +32,9 @@ Remove-Item "Cert:\CurrentUser\My\$($testCert.Thumbprint)" -Force -ErrorAction S
 if (Get-Command openssl -ErrorAction SilentlyContinue) {
     & openssl req -x509 -newkey rsa:2048 -keyout "$OutputDir\https-ca.key" `
         -out "$OutputDir\https-ca.crt" -days 365 -nodes `
-        -subj "/CN=Test HTTPS CA" 2>$null
+        -subj "/CN=Test HTTPS CA" `
+        -addext "basicConstraints=critical,CA:TRUE,pathlen:0" `
+        -addext "keyUsage=critical,keyCertSign,cRLSign" 2>$null
 
     & openssl req -newkey rsa:2048 -keyout "$OutputDir\https-server.key" `
         -out "$OutputDir\https-server.csr" -nodes `
