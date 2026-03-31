@@ -164,19 +164,39 @@ Write-Host "    Subject  : $($cert.Subject)"
 Write-Host "    NotAfter : $($cert.NotAfter)"
 
 # ── Verify the certificate is a CA certificate ───────────────────────────────
-$basicConstraints = $cert.Extensions | Where-Object {
+$basicConstraintsExtensionRaw = $cert.Extensions | Where-Object {
     $_.Oid.Value -eq '2.5.29.19'
-}
-if ($null -eq $basicConstraints) {
+} | Select-Object -First 1
+if ($null -eq $basicConstraintsExtensionRaw) {
     Write-Error "The provided certificate does not contain a BasicConstraints extension and cannot be used as a CA certificate." -ErrorAction Continue
     exit 1
 }
-$basicConstraintsExtension = [System.Security.Cryptography.X509Certificates.X509BasicConstraintsExtension]$basicConstraints
+$basicConstraintsExtension = $basicConstraintsExtensionRaw -as [System.Security.Cryptography.X509Certificates.X509BasicConstraintsExtension]
+if ($null -eq $basicConstraintsExtension) {
+    $basicConstraintsExtension = New-Object System.Security.Cryptography.X509Certificates.X509BasicConstraintsExtension $basicConstraintsExtensionRaw, $basicConstraintsExtensionRaw.Critical
+}
 if (-not $basicConstraintsExtension.CertificateAuthority) {
     Write-Error "The provided certificate is not a CA certificate (BasicConstraints CA=FALSE). Only CA certificates can be installed into the root trust store." -ErrorAction Continue
     exit 1
 }
 
+# Additionally verify KeyUsage includes KeyCertSign
+$keyUsageExtensionRaw = $cert.Extensions | Where-Object {
+    $_.Oid.Value -eq '2.5.29.15'
+} | Select-Object -First 1
+if ($null -eq $keyUsageExtensionRaw) {
+    Write-Error "The provided certificate does not contain a KeyUsage extension with keyCertSign and cannot be used as a CA certificate in the root trust store." -ErrorAction Continue
+    exit 1
+}
+$keyUsageExtension = $keyUsageExtensionRaw -as [System.Security.Cryptography.X509Certificates.X509KeyUsageExtension]
+if ($null -eq $keyUsageExtension) {
+    $keyUsageExtension = New-Object System.Security.Cryptography.X509Certificates.X509KeyUsageExtension $keyUsageExtensionRaw, $keyUsageExtensionRaw.Critical
+}
+$requiredKeyUsage = [System.Security.Cryptography.X509Certificates.X509KeyUsageFlags]::KeyCertSign
+if (($keyUsageExtension.KeyUsages -band $requiredKeyUsage) -eq 0) {
+    Write-Error "The provided certificate's KeyUsage does not include keyCertSign and cannot be used as a CA certificate in the root trust store." -ErrorAction Continue
+    exit 1
+}
 # Derive CA_NAME from the CN field of the subject
 $CA_NAME = if ($cert.Subject -match 'CN=([^,]+)') { $Matches[1].Trim() } else { $cert.Subject }
 
