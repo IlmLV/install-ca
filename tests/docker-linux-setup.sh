@@ -54,7 +54,7 @@ download_and_verify_gpg_key() {
 
 # Install Google Chrome (deb)
 # Google Linux package signing key fingerprint (from official documentation)
-GOOGLE_LINUX_KEY_FPR="4CCA1EAF950CEE4AB83976DCA040830F7FAC5991"
+GOOGLE_LINUX_KEY_FPR="EB4C1BFD4F042F6DDDCCEC917721F63BD38B4796"
 download_and_verify_gpg_key \
   "https://dl.google.com/linux/linux_signing_key.pub" \
   "$GOOGLE_LINUX_KEY_FPR" \

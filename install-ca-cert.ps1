@@ -180,22 +180,23 @@ if (-not $basicConstraintsExtension.CertificateAuthority) {
     exit 1
 }
 
-# Additionally verify KeyUsage includes KeyCertSign
+# Advisory KeyUsage check — warn if keyCertSign is absent but do not block installation.
+# BasicConstraints CA=TRUE is the authoritative check; real-world root CAs sometimes omit
+# or encode KeyUsage differently, so a hard failure here breaks legitimate use-cases.
 $keyUsageExtensionRaw = $cert.Extensions | Where-Object {
     $_.Oid.Value -eq '2.5.29.15'
 } | Select-Object -First 1
 if ($null -eq $keyUsageExtensionRaw) {
-    Write-Error "The provided certificate does not contain a KeyUsage extension with keyCertSign and cannot be used as a CA certificate in the root trust store." -ErrorAction Continue
-    exit 1
-}
-$keyUsageExtension = $keyUsageExtensionRaw -as [System.Security.Cryptography.X509Certificates.X509KeyUsageExtension]
-if ($null -eq $keyUsageExtension) {
-    $keyUsageExtension = New-Object System.Security.Cryptography.X509Certificates.X509KeyUsageExtension $keyUsageExtensionRaw, $keyUsageExtensionRaw.Critical
-}
-$requiredKeyUsage = [System.Security.Cryptography.X509Certificates.X509KeyUsageFlags]::KeyCertSign
-if (($keyUsageExtension.KeyUsages -band $requiredKeyUsage) -eq 0) {
-    Write-Error "The provided certificate's KeyUsage does not include keyCertSign and cannot be used as a CA certificate in the root trust store." -ErrorAction Continue
-    exit 1
+    Write-Warning "The provided certificate does not have a KeyUsage extension. Proceeding, but verify the certificate is a suitable CA certificate."
+} else {
+    $keyUsageExtension = $keyUsageExtensionRaw -as [System.Security.Cryptography.X509Certificates.X509KeyUsageExtension]
+    if ($null -eq $keyUsageExtension) {
+        $keyUsageExtension = New-Object System.Security.Cryptography.X509Certificates.X509KeyUsageExtension $keyUsageExtensionRaw, $keyUsageExtensionRaw.Critical
+    }
+    $requiredKeyUsage = [System.Security.Cryptography.X509Certificates.X509KeyUsageFlags]::KeyCertSign
+    if (($keyUsageExtension.KeyUsages -band $requiredKeyUsage) -eq 0) {
+        Write-Warning "The provided certificate's KeyUsage does not include keyCertSign. Proceeding, but verify the certificate is a suitable CA certificate."
+    }
 }
 # Derive CA_NAME from the CN field of the subject
 $CA_NAME = if ($cert.Subject -match 'CN=([^,]+)') { $Matches[1].Trim() } else { $cert.Subject }

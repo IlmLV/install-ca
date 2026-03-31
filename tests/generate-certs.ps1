@@ -16,8 +16,10 @@ $testCert = New-SelfSignedCertificate `
     -Subject "CN=Test CA, O=Test Org" `
     -CertStoreLocation "Cert:\CurrentUser\My" `
     -NotAfter (Get-Date).AddYears(1) `
-    -KeyUsage CertSign, CRLSign `
-    -TextExtension @("2.5.29.19={critical}{text}CA=true")
+    -TextExtension @(
+        "2.5.29.19={critical}{text}CA=true",
+        "2.5.29.15={critical}{text}CertSign,CRLSign"
+    )
 
 $certBytes = $testCert.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert)
 $b64 = [Convert]::ToBase64String($certBytes, 'InsertLineBreaks')
