@@ -5,6 +5,13 @@
 # used by the bash tests (e.g. "bash install-ca-cert.sh -y $CERT").
 
 BeforeAll {
+    # Elevation check — LocalMachine\Root writes require Administrator privileges.
+    $currentIdentity  = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+    $currentPrincipal = New-Object System.Security.Principal.WindowsPrincipal($currentIdentity)
+    if (-not $currentPrincipal.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)) {
+        throw "These tests modify LocalMachine\Root and must be run from an elevated (Administrator) pwsh session."
+    }
+
     $RepoRoot   = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
     $ScriptPath = Join-Path $RepoRoot 'install-ca-cert.ps1'
 

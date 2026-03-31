@@ -163,6 +163,20 @@ try {
 Write-Host "    Subject  : $($cert.Subject)"
 Write-Host "    NotAfter : $($cert.NotAfter)"
 
+# ── Verify the certificate is a CA certificate ───────────────────────────────
+$basicConstraints = $cert.Extensions | Where-Object {
+    $_.Oid.Value -eq '2.5.29.19'
+}
+if ($null -eq $basicConstraints) {
+    Write-Error "The provided certificate does not contain a BasicConstraints extension and cannot be used as a CA certificate." -ErrorAction Continue
+    exit 1
+}
+$basicConstraintsExtension = [System.Security.Cryptography.X509Certificates.X509BasicConstraintsExtension]$basicConstraints
+if (-not $basicConstraintsExtension.CertificateAuthority) {
+    Write-Error "The provided certificate is not a CA certificate (BasicConstraints CA=FALSE). Only CA certificates can be installed into the root trust store." -ErrorAction Continue
+    exit 1
+}
+
 # Derive CA_NAME from the CN field of the subject
 $CA_NAME = if ($cert.Subject -match 'CN=([^,]+)') { $Matches[1].Trim() } else { $cert.Subject }
 
