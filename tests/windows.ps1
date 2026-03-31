@@ -70,11 +70,12 @@ BeforeAll {
             }
         }
         # Collect output; use GetAwaiter().GetResult() so individual task exceptions surface cleanly
-        $out = $stdoutTask.GetAwaiter().GetResult() + $stderrTask.GetAwaiter().GetResult()
-        if (-not $finished) {
-            return [PSCustomObject]@{ ExitCode = 124; Output = 'Command timed out' }
+        if ($finished) {
+            $out = $stdoutTask.GetAwaiter().GetResult() + $stderrTask.GetAwaiter().GetResult()
+            return [PSCustomObject]@{ ExitCode = $p.ExitCode; Output = $out.Trim() }
         }
-        return [PSCustomObject]@{ ExitCode = $p.ExitCode; Output = $out.Trim() }
+        # On timeout, do not wait on the read tasks to avoid hanging if the process is still running
+        return [PSCustomObject]@{ ExitCode = 124; Output = 'Command timed out' }
     }
 }
 
@@ -191,10 +192,8 @@ Describe 'install-ca-cert.ps1 (Windows)' {
         $listener.Stop()
 
         $opensslPsi = [Diagnostics.ProcessStartInfo]@{
-            FileName               = 'openssl'
-            RedirectStandardOutput = $true
-            RedirectStandardError  = $true
-            UseShellExecute        = $false
+            FileName        = 'openssl'
+            UseShellExecute = $false
         }
         $opensslPsi.ArgumentList.Add('s_server')
         $opensslPsi.ArgumentList.Add('-quiet')
@@ -242,7 +241,10 @@ Describe 'install-ca-cert.ps1 (Windows)' {
             $fin = $p.WaitForExit($script:CmdTimeoutMs)
             if (-not $fin) {
                 try { $p.Kill() } catch { }
-                $p.WaitForExit()
+                $finAfterKill = $p.WaitForExit($script:CmdTimeoutMs)
+                if (-not $finAfterKill) {
+                    throw "Child pwsh process for HTTPS Invoke-WebRequest did not exit within $($script:CmdTimeoutMs) ms even after Kill(); aborting test to avoid hang."
+                }
             }
             [void]$stdoutTask.GetAwaiter().GetResult()
             [void]$stderrTask.GetAwaiter().GetResult()

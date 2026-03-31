@@ -26,7 +26,10 @@ run_openssl() {
 # ── 1. Test CA (used by install-ca-cert.sh / install-ca-cert.ps1 tests) ───────
 run_openssl req -x509 -newkey rsa:2048 -keyout "$OUT/test-ca.key" \
   -out "$OUT/test-ca.crt" -days 365 -nodes \
-  -subj "/CN=Test CA/O=Test Org"
+  -subj "/CN=Test CA/O=Test Org" \
+  -addext "basicConstraints=critical,CA:TRUE,pathlen:0" \
+  -addext "keyUsage=critical,keyCertSign,cRLSign" \
+  -addext "subjectKeyIdentifier=hash"
 
 # ── 2. HTTPS test CA (signs the local HTTPS test server) ──────────────────────
 run_openssl req -x509 -newkey rsa:2048 -keyout "$OUT/https-ca.key" \
