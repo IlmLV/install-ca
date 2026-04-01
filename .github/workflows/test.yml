@@ -60,4 +60,4 @@ jobs:
 
       - name: Run Windows tests
         shell: pwsh
-        run: Invoke-Pester tests/windows.ps1 -Output Detailed
+        run: Invoke-Pester tests/windows.ps1 -Output Detailed -CI

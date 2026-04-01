@@ -24,7 +24,7 @@ for arg in "$@"; do
   case "$arg" in
     --force|-f) FORCE=true ;;
     --yes|-y)   YES=true ;;
-    --*) echo "ERROR: Unknown option: $arg" >&2; exit 1 ;;
+    --*|-*) echo "ERROR: Unknown option: $arg" >&2; exit 1 ;;
     *)
       if [[ -n "$CA_SOURCE_ARG" ]]; then
         echo "ERROR: Multiple positional arguments provided: '$CA_SOURCE_ARG' and '$arg'" >&2
@@ -163,7 +163,20 @@ if ! openssl x509 -in "$CA_FILE" -noout 2>/dev/null; then
   exit 1
 fi
 
-echo "    $(openssl x509 -in "$CA_FILE" -noout -subject -enddate | tr '\n' '  ')"
+# Verify the certificate has BasicConstraints CA:TRUE
+_cert_text=$(openssl x509 -in "$CA_FILE" -noout -text 2>/dev/null)
+if ! printf '%s' "$_cert_text" | grep -q "X509v3 Basic Constraints"; then
+  echo "ERROR: The provided certificate does not contain a BasicConstraints extension and cannot be used as a CA certificate." >&2
+  exit 1
+fi
+if ! printf '%s' "$_cert_text" | grep -qE "CA:(TRUE|true)"; then
+  echo "ERROR: The provided certificate is not a CA certificate (BasicConstraints CA=FALSE). Only CA certificates can be installed into the root trust store." >&2
+  exit 1
+fi
+unset _cert_text
+
+echo "    Subject  : $(openssl x509 -in "$CA_FILE" -noout -subject 2>/dev/null | sed 's/^subject[[:space:]]*=[[:space:]]*//')"
+echo "    NotAfter : $(openssl x509 -in "$CA_FILE" -noout -enddate 2>/dev/null | sed 's/^notAfter=//')"
 
 # Derive CA_NAME from the certificate CN, fall back to full subject.
 # Strip the leading "subject=" prefix emitted by OpenSSL and any leading "/"
@@ -260,16 +273,27 @@ fi
 #    - Microsoft Edge
 #
 SHARED_NSS="$HOME/.pki/nssdb"
+_shared_nss_ready=true
+
 if [[ ! -d "$SHARED_NSS" ]]; then
   echo ""
-  echo "    Creating shared NSS database at $SHARED_NSS ..."
-  mkdir -p "$SHARED_NSS"
-  certutil -d "sql:$SHARED_NSS" -N --empty-password
+  echo "==> Shared NSS database"
+  echo "    No shared NSS database found at $SHARED_NSS."
+  if confirm "    Create it? (required for Chrome, Chromium, Edge — deb installs)"; then
+    mkdir -p "$SHARED_NSS"
+    certutil -d "sql:$SHARED_NSS" -N --empty-password
+    echo "    Created."
+  else
+    echo "    Skipped — Chrome, Chromium, and Edge (deb) trust store will not be updated."
+    _shared_nss_ready=false
+  fi
 fi
 
-install_to_nss_dbs \
-  "Shared NSS database (Google Chrome, Chromium, Edge — deb installs)" \
-  "$SHARED_NSS"
+if [[ "$_shared_nss_ready" == true ]]; then
+  install_to_nss_dbs \
+    "Shared NSS database (Google Chrome, Chromium, Edge — deb installs)" \
+    "$SHARED_NSS"
+fi
 
 # ── 7. Brave (snap) ───────────────────────────────────────────────────────────
 #

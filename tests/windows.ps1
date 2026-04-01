@@ -237,11 +237,15 @@ Describe 'install-ca-cert.ps1 (Windows)' {
             $installed = $true
 
             $psi = [Diagnostics.ProcessStartInfo]@{
-                FileName = 'pwsh'
-                Arguments = "-NoProfile -NonInteractive -Command `"Invoke-WebRequest https://127.0.0.1:$port/ | Out-Null`""
-                RedirectStandardOutput = $true; RedirectStandardError = $true
-                UseShellExecute = $false
+                FileName               = 'pwsh'
+                RedirectStandardOutput = $true
+                RedirectStandardError  = $true
+                UseShellExecute        = $false
             }
+            $psi.ArgumentList.Add('-NoProfile')
+            $psi.ArgumentList.Add('-NonInteractive')
+            $psi.ArgumentList.Add('-Command')
+            $psi.ArgumentList.Add("Invoke-WebRequest https://127.0.0.1:$port/ | Out-Null")
             $p = [Diagnostics.Process]::Start($psi)
             $stdoutTask = $p.StandardOutput.ReadToEndAsync()
             $stderrTask = $p.StandardError.ReadToEndAsync()
@@ -262,7 +266,9 @@ Describe 'install-ca-cert.ps1 (Windows)' {
                 try { $opensslProc.Kill(); $opensslProc.WaitForExit() } catch { }
             }
             if ($installed) {
-                $thumb = (New-Object Security.Cryptography.X509Certificates.X509Certificate2 $script:HttpsCaFile).Thumbprint
+                $httpsCaCert = [Security.Cryptography.X509Certificates.X509Certificate2]::new($script:HttpsCaFile)
+                $thumb = $httpsCaCert.Thumbprint
+                $httpsCaCert.Dispose()
                 $store = [Security.Cryptography.X509Certificates.X509Store]::new('Root', 'LocalMachine')
                 $store.Open('ReadWrite')
                 $store.Certificates | Where-Object Thumbprint -eq $thumb | ForEach-Object { $store.Remove($_) }

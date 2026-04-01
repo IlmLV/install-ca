@@ -21,10 +21,8 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-$IsWindowsPlatform = $IsWindows
-
 # ── Elevation check ───────────────────────────────────────────────────────────
-if ($IsWindowsPlatform) {
+if ($IsWindows) {
     $id        = [System.Security.Principal.WindowsIdentity]::GetCurrent()
     $principal = New-Object System.Security.Principal.WindowsPrincipal($id)
     if (-not $principal.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)) {
@@ -34,12 +32,6 @@ if ($IsWindowsPlatform) {
 }
 
 $tempDir = [IO.Path]::GetTempPath()
-if ([string]::IsNullOrWhiteSpace($tempDir)) {
-    $tempDir = $env:TEMP
-}
-if ([string]::IsNullOrWhiteSpace($tempDir)) {
-    throw "Unable to determine temp directory."
-}
 $caFileName = "ca_{0}.crt" -f ([guid]::NewGuid().ToString("N"))
 $CA_FILE = Join-Path $tempDir $caFileName
 
@@ -196,7 +188,7 @@ $CA_NAME = if ($cert.Subject -match 'CN=([^,]+)') { $Matches[1].Trim() } else { 
 Write-Host "    CA Name  : $CA_NAME"
 
 # ── Non-Windows short-circuit ────────────────────────────────────────────────
-if (-not $IsWindowsPlatform) {
+if (-not $IsWindows) {
     if ($env:INSTALL_CA_CERT_TEST_LINUX -eq '1') {
         $safeName = ($CA_NAME.ToLower() -replace '[^a-z0-9]+', '-').Trim('-')
         if ([string]::IsNullOrWhiteSpace($safeName)) { $safeName = 'custom-ca' }
@@ -264,7 +256,7 @@ if ($existing) {
         Write-Host "    Status   : Remote certificate is newer by $days day(s) — update recommended."
     } elseif ($cert.NotAfter -lt $existing.NotAfter) {
         $days = [int]($existing.NotAfter - $cert.NotAfter).TotalDays
-        Write-Warning "    Status   : Installed certificate expires $days day(s) LATER than the remote one."
+        Write-Host "    Status   : WARNING — Installed certificate expires $days day(s) LATER than the remote one."
     } else {
         Write-Host "    Status   : Different certificate with the same expiry date."
     }
@@ -290,16 +282,16 @@ if (Confirm-Action "    Add '$CA_NAME' to the Windows Root CA store?") {
     try {
         # First, check for an existing certificate with the same thumbprint
         $existingThumbprintCerts = $store.Certificates | Where-Object { $_.Thumbprint -eq $cert.Thumbprint }
-        if ($existingThumbprintCerts -and $existingThumbprintCerts.Count -gt 0) {
+        if ($existingThumbprintCerts) {
             Write-Host "    Certificate with the same thumbprint is already present in LocalMachine\Root. Skipping add to avoid duplicate."
         } else {
             # Optionally clean up older certificates with the same subject but different thumbprints
             $subjectMatches = $store.Certificates | Where-Object { $_.Subject -eq $cert.Subject }
-            if ($subjectMatches -and $subjectMatches.Count -gt 0) {
+            if ($subjectMatches) {
                 if ($Force) {
                     foreach ($old in $subjectMatches) {
                         if ($old.Thumbprint -ne $cert.Thumbprint) {
-                            Write-Host "    Removing existing certificate with same subject and thumbprint $($old.Thumbprint) from LocalMachine\Root."
+                            Write-Host "    Removing existing certificate with same subject but different thumbprint $($old.Thumbprint) from LocalMachine\Root."
                             $store.Remove($old)
                         }
                     }
