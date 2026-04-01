@@ -57,7 +57,7 @@ run_openssl x509 -req -in "$OUT/https-server.csr" \
   -CAcreateserial -out "$OUT/https-server.crt" -days 365 \
   -extfile "$HTTPS_SERVER_EXT"
 
-rm -f "$OUT/https-server.csr" "$OUT/https-ca.srl" "$HTTPS_SERVER_EXT" "$OUT/test-ca.key"
+rm -f "$OUT/https-server.csr" "$OUT/https-ca.srl" "$OUT/https-ca.key" "$HTTPS_SERVER_EXT" "$OUT/test-ca.key"
 
 if [[ "$QUIET" != "1" ]]; then
   echo "Certificates generated in $OUT"

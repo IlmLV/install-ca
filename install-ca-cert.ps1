@@ -79,7 +79,7 @@ function Confirm-Action([string]$Prompt) {
 
 # Download without validating server TLS (the CA is not yet trusted)
 function Invoke-InsecureDownload([string]$Uri, [string]$OutFile) {
-    Invoke-WebRequest -Uri $Uri -OutFile $OutFile -SkipCertificateCheck
+    Invoke-WebRequest -Uri $Uri -OutFile $OutFile -SkipCertificateCheck -TimeoutSec 30
 }
 
 # Add CA to a single NSS sql: database directory using Firefox's certutil.exe
@@ -116,7 +116,7 @@ if ($CA_SOURCE -match '^https?://') {
     Write-Host "==> Fetching CA certificate from $CA_SOURCE ..."
     $downloadOk = $false
     try {
-        Invoke-WebRequest -Uri $CA_SOURCE -OutFile $CA_FILE
+        Invoke-WebRequest -Uri $CA_SOURCE -OutFile $CA_FILE -TimeoutSec 30
         $downloadOk = $true
     } catch {
         Write-Host "    WARNING: Secure download failed. The server's TLS certificate may be invalid or self-signed."
@@ -140,19 +140,10 @@ try {
     $fileContent = Get-Content -LiteralPath $CA_FILE -Raw
 
     if ($fileContent -match '-----BEGIN CERTIFICATE-----') {
-        # Prefer CreateFromPemFile when available ( .NET 5+ ), fall back to the file constructor otherwise
-        $createFromPemFileMethod = [System.Security.Cryptography.X509Certificates.X509Certificate2]::GetMethod(
-            'CreateFromPemFile',
-            [Type[]]@([string])
-        )
-
-        if ($null -ne $createFromPemFileMethod) {
-            $cert = [System.Security.Cryptography.X509Certificates.X509Certificate2]::CreateFromPemFile($CA_FILE)
-        } else {
-            $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2 $CA_FILE
-        }
+        # PEM format — CreateFromPemFile is always available on .NET 5+ (PS7+)
+        $cert = [System.Security.Cryptography.X509Certificates.X509Certificate2]::CreateFromPemFile($CA_FILE)
     } else {
-        # Non-PEM input (e.g., DER) – keep existing behavior
+        # Non-PEM input (e.g., DER)
         $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2 $CA_FILE
     }
 } catch {
@@ -198,6 +189,7 @@ if ($null -eq $keyUsageExtensionRaw) {
         Write-Warning "The provided certificate's KeyUsage does not include keyCertSign. Proceeding, but verify the certificate is a suitable CA certificate."
     }
 }
+
 # Derive CA_NAME from the CN field of the subject
 $CA_NAME = if ($cert.Subject -match 'CN=([^,]+)') { $Matches[1].Trim() } else { $cert.Subject }
 

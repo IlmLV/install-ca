@@ -26,6 +26,7 @@ download_and_verify_gpg_key() {
 
   local tmp
   tmp="$(mktemp)"
+  trap 'rm -f "$tmp"' RETURN
 
   curl -fsSL "$url" -o "$tmp"
 
@@ -35,7 +36,6 @@ download_and_verify_gpg_key() {
 
   if [ -z "$actual_fpr" ]; then
     echo "ERROR: Unable to extract fingerprint from key downloaded from $url" >&2
-    rm -f "$tmp"
     exit 1
   fi
 
@@ -43,13 +43,11 @@ download_and_verify_gpg_key() {
     echo "ERROR: Fingerprint mismatch for key from $url" >&2
     echo "       Expected: $expected_fpr" >&2
     echo "       Actual:   $actual_fpr" >&2
-    rm -f "$tmp"
     exit 1
   fi
 
   # Convert to a keyring suitable for APT
   gpg --dearmor -o "$target" "$tmp"
-  rm -f "$tmp"
 }
 
 # Install Google Chrome (deb)
@@ -74,7 +72,7 @@ echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/microsoft.gpg] https://package
 
 # Install Brave (deb)
 # Brave browser APT archive key fingerprint (from official documentation)
-BRAVE_BROWSER_KEY_FPR="A3A8F6F3C6B0CF67A9B3F2D1C20F2A7B4B2D3FE5"
+BRAVE_BROWSER_KEY_FPR="DBF1A116C220B8C7164F98230686B78420038257"
 download_and_verify_gpg_key \
   "https://brave-browser-apt-release.s3.brave.com/brave-browser-archive-keyring.gpg" \
   "$BRAVE_BROWSER_KEY_FPR" \

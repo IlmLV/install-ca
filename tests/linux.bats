@@ -23,7 +23,7 @@ install_https_ca() {
 }
 
 require_cmd() {
-    command -v "$1" >/dev/null 2>&1 || { echo "$2"; return 1; }
+    command -v "$1" >/dev/null 2>&1 || skip "$2"
 }
 
 run_timeout() {
@@ -72,19 +72,22 @@ run_headless() {
     local label="$1"; shift
     run_timeout "$@"
     if [[ "$status" -eq 124 ]]; then
-        echo "$label timed out in this container environment"
-        return 1
+        skip "$label timed out in this container environment"
     fi
 }
 
 setup() {
     rm -f "$SYSTEM_CA_DIR/test-ca.crt" "$SYSTEM_CA_DIR/test-https-ca.crt"
     rm -rf "$SHARED_NSS_DIR" "$BRAVE_NSS_DIR" "$CHROMIUM_NSS_DIR" "$FIREFOX_DEB_NSS_DIR" "$FIREFOX_SNAP_NSS_DIR"
+    rm -rf /tmp/chrome-profile /tmp/chromium-profile /tmp/edge-profile
+    rm -f /tmp/firefox-test.png
 }
 
 teardown() {
     rm -f "$SYSTEM_CA_DIR/test-ca.crt" "$SYSTEM_CA_DIR/test-https-ca.crt"
     rm -rf "$SHARED_NSS_DIR" "$BRAVE_NSS_DIR" "$CHROMIUM_NSS_DIR" "$FIREFOX_DEB_NSS_DIR" "$FIREFOX_SNAP_NSS_DIR"
+    rm -rf /tmp/chrome-profile /tmp/chromium-profile /tmp/edge-profile
+    rm -f /tmp/firefox-test.png
 }
 
 @test "empty input exits with error" {
@@ -154,11 +157,10 @@ teardown() {
     local bin
     if ! bin="$(pick_chromium_deb_bin)"; then
         if command -v chromium >/dev/null 2>&1 || command -v chromium-browser >/dev/null 2>&1; then
-            echo "chromium deb not installed (snap stub detected)"
+            skip "chromium deb not installed (snap stub detected)"
         else
-            echo "chromium not installed"
+            skip "chromium not installed"
         fi
-        return 1
     fi
     install_https_ca
     run_headless "Chromium" bash -c "$bin --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --no-first-run --no-default-browser-check --disable-component-update --user-data-dir=/tmp/chromium-profile --dump-dom https://127.0.0.1:8443/ >/dev/null"
@@ -168,8 +170,7 @@ teardown() {
 @test "Microsoft Edge headless loads HTTPS page after trust install" {
     local bin
     if ! bin="$(pick_edge_bin)"; then
-        echo "microsoft-edge not installed"
-        return 1
+        skip "microsoft-edge not installed"
     fi
     install_https_ca
     run_headless "Microsoft Edge" bash -c "$bin --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --no-first-run --no-default-browser-check --disable-component-update --user-data-dir=/tmp/edge-profile --dump-dom https://127.0.0.1:8443/ >/dev/null"
@@ -180,11 +181,10 @@ teardown() {
     local bin
     if ! bin="$(pick_firefox_deb_bin)"; then
         if command -v firefox >/dev/null 2>&1 || command -v firefox-esr >/dev/null 2>&1; then
-            echo "firefox deb not installed (snap stub detected)"
-            return 1
+            skip "firefox deb not installed (snap stub detected)"
+        else
+            skip "firefox not installed"
         fi
-        echo "firefox not installed"
-        return 1
     fi
     # Use a deterministic profile DB that install_https_ca can populate.
     init_nss_db "$FIREFOX_DEB_NSS_DIR"

@@ -50,7 +50,7 @@ if (Get-Command openssl -ErrorAction SilentlyContinue) {
         -CAcreateserial -out "$OutputDir\https-server.crt" -days 365 `
         -extfile $ext 2>$null
 
-    Remove-Item $ext, "$OutputDir\https-server.csr" -Force -ErrorAction SilentlyContinue
+    Remove-Item $ext, "$OutputDir\https-server.csr", "$OutputDir\https-ca.key", "$OutputDir\https-ca.srl" -Force -ErrorAction SilentlyContinue
 }
 
 Write-Host "Certificates generated in $OutputDir"

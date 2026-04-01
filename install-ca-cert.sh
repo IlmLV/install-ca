@@ -51,14 +51,21 @@ on_interrupt() {
   exit 130
 }
 
+on_term() {
+  echo ""
+  echo "Terminated — exiting."
+  exit 143
+}
+
 trap cleanup EXIT
-trap on_interrupt INT TERM
+trap on_interrupt INT
+trap on_term TERM
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 confirm() {
   if [[ "$YES" == true ]]; then
-    echo "$1 [y/N] y"
+    printf '%s [y/N] y\n' "$1"
     return 0
   fi
   reply=""
@@ -109,7 +116,7 @@ find_nss_dbs() {
     [[ -d "$root" ]] || continue
     while IFS= read -r d; do
       [[ -n "$d" ]] && results+=("$d")
-    done < <(find "$root" -name "cert9.db" -exec dirname {} \; 2>/dev/null)
+    done < <(find "$root" -name "cert9.db" -printf '%h\n' 2>/dev/null)
   done
   [[ ${#results[@]} -eq 0 ]] && return
   printf '%s\n' "${results[@]}" | sort -u
@@ -136,11 +143,11 @@ CA_FILE="$WORK_DIR/ca.crt"
 
 if [[ "$CA_SOURCE" =~ ^https?:// ]]; then
   echo "==> Fetching CA certificate from $CA_SOURCE ..."
-  if ! curl_err=$(curl -fSsL "$CA_SOURCE" -o "$CA_FILE" 2>&1); then
+  if ! curl_err=$(curl -fSsL --max-time 30 --connect-timeout 10 "$CA_SOURCE" -o "$CA_FILE" 2>&1); then
     echo "    WARNING: Secure download failed. The server's TLS certificate may be invalid or self-signed."
     echo "    Detail  : $curl_err"
     if confirm "    Retry without TLS certificate validation (insecure)?"; then
-      curl -kfSsL "$CA_SOURCE" -o "$CA_FILE"
+      curl -kfSsL --max-time 30 --connect-timeout 10 "$CA_SOURCE" -o "$CA_FILE"
     else
       echo "ERROR: Download aborted." >&2
       exit 1
@@ -158,13 +165,19 @@ fi
 
 echo "    $(openssl x509 -in "$CA_FILE" -noout -subject -enddate | tr '\n' '  ')"
 
-# Derive CA_NAME from the certificate CN, fall back to full subject
-CA_SUBJECT=$(openssl x509 -in "$CA_FILE" -noout -subject 2>/dev/null)
-CA_CN=$(printf '%s' "$CA_SUBJECT" | sed 's/.*CN[[:space:]]*=[[:space:]]*//' | sed 's/,.*//')
+# Derive CA_NAME from the certificate CN, fall back to full subject.
+# Strip the leading "subject=" prefix emitted by OpenSSL and any leading "/"
+# from old-style slash-delimited subjects (OpenSSL 1.x).
+CA_SUBJECT=$(openssl x509 -in "$CA_FILE" -noout -subject 2>/dev/null \
+  | sed 's/^subject[[:space:]]*=[[:space:]]*//' \
+  | sed 's|^/||')
+# sed -n with /p only prints when the CN pattern matches, so CA_CN is empty
+# when there is no CN field — the fallback then uses the full stripped subject.
+CA_CN=$(printf '%s' "$CA_SUBJECT" | sed -n 's/.*CN[[:space:]]*=[[:space:]]*\([^,/]*\).*/\1/p' | sed 's/[[:space:]]*$//')
 CA_NAME="${CA_CN:-$CA_SUBJECT}"
 
 # Derive a safe filename from CA_NAME
-_safe_name="$(echo "$CA_NAME" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed 's/-\+/-/g; s/^-//; s/-$//')"
+_safe_name="$(printf '%s\n' "$CA_NAME" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed 's/-\+/-/g; s/^-//; s/-$//')"
 CA_FILENAME="${_safe_name:-custom-ca}.crt"
 SYSTEM_CA_FILE="$SYSTEM_CA_DIR/$CA_FILENAME"
 
@@ -179,8 +192,8 @@ if [[ -f "$SYSTEM_CA_FILE" ]]; then
   existing_end=$(openssl x509 -in "$SYSTEM_CA_FILE" -noout -enddate 2>/dev/null | cut -d= -f2)
   remote_end=$(openssl x509   -in "$CA_FILE"         -noout -enddate 2>/dev/null | cut -d= -f2)
 
-  existing_ts=$(date -d "$existing_end" +%s 2>/dev/null || date -j -f "%b %d %T %Y %Z" "$existing_end" +%s)
-  remote_ts=$(date    -d "$remote_end"   +%s 2>/dev/null || date -j -f "%b %d %T %Y %Z" "$remote_end"   +%s)
+  existing_ts=$(date -d "$existing_end" +%s 2>/dev/null || date -j -f "%b %d %T %Y %Z" "$existing_end" +%s 2>/dev/null || true)
+  remote_ts=$(date    -d "$remote_end"   +%s 2>/dev/null || date -j -f "%b %d %T %Y %Z" "$remote_end"   +%s 2>/dev/null || true)
 
   existing_fp=$(openssl x509 -in "$SYSTEM_CA_FILE" -noout -fingerprint -sha256 2>/dev/null | cut -d= -f2)
   remote_fp=$(openssl x509   -in "$CA_FILE"         -noout -fingerprint -sha256 2>/dev/null | cut -d= -f2)
@@ -190,7 +203,9 @@ if [[ -f "$SYSTEM_CA_FILE" ]]; then
   echo "    Remote   : $remote_fp"
   echo "    expires  : $remote_end"
 
-  if [[ "$existing_fp" == "$remote_fp" ]]; then
+  if [[ -z "$existing_ts" || -z "$remote_ts" ]]; then
+    echo "    Status   : Cannot compare certificate dates — date parsing failed."
+  elif [[ "$existing_fp" == "$remote_fp" ]]; then
     if [[ "$FORCE" == true ]]; then
       echo "    Status   : Already up-to-date but --force was specified, continuing."
     else

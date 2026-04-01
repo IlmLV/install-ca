@@ -46,7 +46,7 @@ run_suite() {
     FAIL+=("$name (build failed)")
     return
   fi
-  if docker run --rm -t "$tag"; then
+  if docker run --rm "$tag"; then
     PASS+=("$name")
     echo "run: OK"
   else

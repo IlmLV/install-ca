@@ -18,8 +18,10 @@ https_pid=$!
 
 trap 'kill "$https_pid" 2>/dev/null || true' EXIT
 
-for _ in $(seq 1 50); do
-  (exec 3<>/dev/tcp/127.0.0.1/8443) 2>/dev/null && break || sleep 0.1
+for _ in {1..50}; do
+  (exec 3<>/dev/tcp/127.0.0.1/8443) 2>/dev/null && break
+  kill -0 "$https_pid" 2>/dev/null || { echo "ERROR: HTTPS server process exited unexpectedly." >&2; exit 1; }
+  sleep 0.1
 done
 
 if ! (exec 3<>/dev/tcp/127.0.0.1/8443) 2>/dev/null; then
