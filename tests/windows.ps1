@@ -226,8 +226,12 @@ Describe 'install-ca.ps1 (Windows)' {
         $listener.Stop()
 
         $opensslPsi = [Diagnostics.ProcessStartInfo]@{
-            FileName        = 'openssl'
-            UseShellExecute = $false
+            FileName              = 'openssl'
+            UseShellExecute       = $false
+            # Redirect stdin so openssl does not inherit a closed pipe from the CI runner.
+            # openssl s_server monitors stdin in its select() loop and exits on EOF; keeping
+            # the pipe open (but empty) prevents it from dying during the cert-install step.
+            RedirectStandardInput = $true
         }
         $opensslArgs = @(
             's_server'
@@ -266,6 +270,12 @@ Describe 'install-ca.ps1 (Windows)' {
             $r.ExitCode | Should -Be 0
             $installed = $true
 
+            # Verify the server is still alive after the cert install step; if it exited
+            # (e.g., stdin EOF on CI), fail with a clear message rather than a TLS error.
+            if ($opensslProc.HasExited) {
+                throw "openssl s_server exited unexpectedly (exit code $($opensslProc.ExitCode)) before the HTTPS trust check could run."
+            }
+
             $psi = [Diagnostics.ProcessStartInfo]@{
                 FileName               = $script:PowerShellExe
                 RedirectStandardOutput = $true
@@ -291,8 +301,8 @@ Describe 'install-ca.ps1 (Windows)' {
                 }
             }
             [void]$stdoutTask.GetAwaiter().GetResult()
-            [void]$stderrTask.GetAwaiter().GetResult()
-            $p.ExitCode | Should -Be 0
+            $stderr = $stderrTask.GetAwaiter().GetResult()
+            $p.ExitCode | Should -Be 0 -Because "Invoke-WebRequest stderr: $($stderr.Trim())"
         }
         finally {
             if ($null -ne $opensslProc -and -not $opensslProc.HasExited) {
