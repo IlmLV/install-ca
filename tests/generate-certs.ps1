@@ -52,6 +52,14 @@ try {
 # ── HTTPS test CA + server cert (requires openssl in PATH) ───────────────────
 if (Get-Command openssl -ErrorAction SilentlyContinue) {
     $ext = $null
+    # In Windows PowerShell 5.1, redirecting an external command's stderr with 2>&1
+    # writes each stderr line as an ErrorRecord into the output stream AND the error
+    # stream.  With $ErrorActionPreference = 'Stop', the first such record (openssl's
+    # random-seed progress dots) becomes a terminating error before $LASTEXITCODE is
+    # checked.  Save and restore the preference around the openssl calls so progress
+    # output is treated as non-fatal; $LASTEXITCODE still catches real failures.
+    $savedEAP = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
     try {
         $out = & openssl req -x509 -newkey rsa:2048 -keyout "$OutputDir\https-ca.key" `
             -out "$OutputDir\https-ca.crt" -days 365 -nodes `
@@ -74,6 +82,7 @@ if (Get-Command openssl -ErrorAction SilentlyContinue) {
             -extfile $ext 2>&1 | Out-String
         if ($LASTEXITCODE -ne 0) { throw "openssl failed to sign https-server.crt (exit $LASTEXITCODE)`n$out" }
     } finally {
+        $ErrorActionPreference = $savedEAP
         if ($ext) { Remove-Item $ext -Force -ErrorAction SilentlyContinue }
         Remove-Item "$OutputDir\https-server.csr", "$OutputDir\https-ca.key", "$OutputDir\https-ca.srl" -Force -ErrorAction SilentlyContinue
     }
