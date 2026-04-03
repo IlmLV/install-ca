@@ -78,6 +78,7 @@ run_headless() {
 
 setup() {
     rm -f "$SYSTEM_CA_DIR/test-ca.crt" "$SYSTEM_CA_DIR/test-https-ca.crt"
+    update-ca-certificates --fresh >/dev/null 2>&1 || true
     rm -rf "$SHARED_NSS_DIR" "$BRAVE_NSS_DIR" "$CHROMIUM_NSS_DIR" "$FIREFOX_DEB_NSS_DIR" "$FIREFOX_SNAP_NSS_DIR"
     rm -rf /tmp/chrome-profile /tmp/chromium-profile /tmp/edge-profile
     rm -f /tmp/firefox-test.png
@@ -85,6 +86,7 @@ setup() {
 
 teardown() {
     rm -f "$SYSTEM_CA_DIR/test-ca.crt" "$SYSTEM_CA_DIR/test-https-ca.crt"
+    update-ca-certificates --fresh >/dev/null 2>&1 || true
     rm -rf "$SHARED_NSS_DIR" "$BRAVE_NSS_DIR" "$CHROMIUM_NSS_DIR" "$FIREFOX_DEB_NSS_DIR" "$FIREFOX_SNAP_NSS_DIR"
     rm -rf /tmp/chrome-profile /tmp/chromium-profile /tmp/edge-profile
     rm -f /tmp/firefox-test.png
