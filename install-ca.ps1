@@ -1,4 +1,4 @@
-﻿# Install a CA certificate into system and browser trust stores
+# Install a CA certificate into system and browser trust stores
 #
 # Browsers handled:
 #   - System trust store   (Windows Certificate Store — LocalMachine\Root)
