@@ -31,6 +31,11 @@ while [[ $i -le $# ]]; do
       if [[ $i -gt $# ]]; then
         echo "ERROR: ${arg} requires a value" >&2; exit 1
       fi
+      if [[ -n "$CA_SOURCE_ARG" ]]; then
+        echo "ERROR: Multiple CA sources provided: '$CA_SOURCE_ARG' and '${!i}'" >&2
+        echo "Usage: bash install-ca.sh [CA-URL-or-path] [--url|-u <url>] [--force|-f] [--yes|-y]" >&2
+        exit 1
+      fi
       CA_SOURCE_ARG="${!i}"
       ;;
     --*|-*) echo "ERROR: Unknown option: $arg" >&2; exit 1 ;;
