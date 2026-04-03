@@ -1,4 +1,4 @@
-﻿# install-ca
+# install-ca
 
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows-blue)](https://github.com/IlmLV/install-ca)
 [![Tests](https://github.com/IlmLV/install-ca/actions/workflows/test.yml/badge.svg)](https://github.com/IlmLV/install-ca/actions/workflows/test.yml)
@@ -92,7 +92,7 @@ irm https://raw.githubusercontent.com/IlmLV/install-ca/main/install-ca.ps1 | iex
 Before modifying any trust store, the script checks whether the certificate is already installed:
 
 1. Fetches or copies the certificate from the provided source
-2. Validates it is a well-formed certificate (PEM or DER)
+2. Validates it is a well-formed certificate (PEM on Linux; PEM or DER where supported by the platform implementation)
 3. Looks up any existing certificate with the same subject in the system trust store
 4. Compares SHA-256 fingerprints and expiry dates, and reports one of:
    - **Already up-to-date** — exits without changes

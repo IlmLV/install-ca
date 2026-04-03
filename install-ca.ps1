@@ -91,16 +91,28 @@ function Confirm-Action([string]$Prompt) {
     return $reply -match '^[Yy]$'
 }
 
+function Invoke-CompatWebRequest([string]$Uri, [string]$OutFile, [switch]$SkipCertificateCheck) {
+    if ($PSVersionTable.PSVersion.Major -ge 6) {
+        if ($SkipCertificateCheck) {
+            Invoke-WebRequest -Uri $Uri -OutFile $OutFile -SkipCertificateCheck -TimeoutSec 30
+        } else {
+            Invoke-WebRequest -Uri $Uri -OutFile $OutFile -TimeoutSec 30
+        }
+    } else {
+        Invoke-WebRequest -Uri $Uri -OutFile $OutFile -UseBasicParsing -TimeoutSec 30
+    }
+}
+
 # Download without validating server TLS (the CA is not yet trusted)
 function Invoke-InsecureDownload([string]$Uri, [string]$OutFile) {
     if ($PSVersionTable.PSVersion.Major -ge 6) {
-        Invoke-WebRequest -Uri $Uri -OutFile $OutFile -SkipCertificateCheck -TimeoutSec 30
+        Invoke-CompatWebRequest -Uri $Uri -OutFile $OutFile -SkipCertificateCheck
     } else {
         # PowerShell 5.x: bypass certificate validation via ServicePointManager
         $origCallback = [System.Net.ServicePointManager]::ServerCertificateValidationCallback
         [System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
         try {
-            Invoke-WebRequest -Uri $Uri -OutFile $OutFile -TimeoutSec 30
+            Invoke-CompatWebRequest -Uri $Uri -OutFile $OutFile
         } finally {
             [System.Net.ServicePointManager]::ServerCertificateValidationCallback = $origCallback
         }

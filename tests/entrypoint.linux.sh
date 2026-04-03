@@ -10,13 +10,15 @@ bash /workspace/tests/generate-certs.sh "$CERTS_DIR"
 export TEST_CERT="$CERTS_DIR/test-ca.crt"
 export HTTPS_CA="$CERTS_DIR/https-ca.crt"
 
+coproc HTTPS_STDIN_KEEPALIVE { tail -f /dev/null; }
+
 openssl s_server -quiet -accept 8443 \
   -cert "$CERTS_DIR/https-server.crt" \
   -key "$CERTS_DIR/https-server.key" \
-  -www >/dev/null 2>&1 &
+  -www <&"${HTTPS_STDIN_KEEPALIVE[0]}" >/dev/null 2>&1 &
 https_pid=$!
 
-trap 'kill "$https_pid" 2>/dev/null || true' EXIT
+trap 'kill "$https_pid" "$HTTPS_STDIN_KEEPALIVE_PID" 2>/dev/null || true' EXIT
 
 for _ in {1..50}; do
   (exec 3<>/dev/tcp/127.0.0.1/8443) 2>/dev/null && break

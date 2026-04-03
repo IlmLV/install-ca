@@ -377,7 +377,7 @@ Describe 'install-ca.ps1 (Windows)' {
                 '-NoProfile'
                 '-NonInteractive'
                 '-Command'
-                "Invoke-WebRequest https://127.0.0.1:$port/ -UseBasicParsing | Out-Null"
+                "if (`$PSVersionTable.PSVersion.Major -lt 6) { Invoke-WebRequest https://127.0.0.1:$port/ -UseBasicParsing | Out-Null } else { Invoke-WebRequest https://127.0.0.1:$port/ | Out-Null }"
             )
             $psi.Arguments = Join-ProcessArguments -Argument $childArgs
             $p = [Diagnostics.Process]::Start($psi)

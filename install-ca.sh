@@ -180,8 +180,14 @@ else
 fi
 
 if ! openssl x509 -in "$CA_FILE" -noout 2>/dev/null; then
-  echo "ERROR: File is not a valid PEM certificate." >&2
-  exit 1
+  if openssl x509 -inform DER -in "$CA_FILE" -noout 2>/dev/null; then
+    CA_PEM_FILE="$WORK_DIR/ca.pem"
+    openssl x509 -inform DER -in "$CA_FILE" -out "$CA_PEM_FILE"
+    CA_FILE="$CA_PEM_FILE"
+  else
+    echo "ERROR: File is not a valid PEM or DER certificate." >&2
+    exit 1
+  fi
 fi
 
 # Verify the certificate has BasicConstraints CA:TRUE
