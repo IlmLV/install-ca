@@ -76,6 +76,15 @@ run_headless() {
     fi
 }
 
+preinstall_test_cert() {
+    cp "$CERT" "$SYSTEM_CA_DIR/test-ca.crt"
+}
+
+run_oneliner() {
+    # Simulate: curl -fsSL <url> | bash -s -- [args...]
+    run bash -c 'cat "$1" | bash -s -- "${@:2}"' -- "$SCRIPT" "$@"
+}
+
 setup() {
     rm -f "$SYSTEM_CA_DIR/test-ca.crt" "$SYSTEM_CA_DIR/test-https-ca.crt"
     update-ca-certificates --fresh >/dev/null 2>&1 || true
@@ -93,7 +102,7 @@ teardown() {
 }
 
 @test "empty input exits with error" {
-    run bash -c "printf '\n' | bash '$SCRIPT'"
+    run bash -c "bash '$SCRIPT' </dev/null"
     [ "$status" -eq 1 ]
     [[ "$output" == *"No CA source provided"* ]]
 }
@@ -106,18 +115,59 @@ teardown() {
 }
 
 @test "already installed cert exits cleanly" {
-    cp "$CERT" "$SYSTEM_CA_DIR/test-ca.crt"
-    run bash -c "printf '%s\n' '$CERT' | bash '$SCRIPT'"
+    preinstall_test_cert
+    run bash "$SCRIPT" -y "$CERT"
     [ "$status" -eq 0 ]
     [[ "$output" == *"Already up-to-date"* ]]
 }
 
 @test "--force: already installed cert continues and reinstalls" {
-    cp "$CERT" "$SYSTEM_CA_DIR/test-ca.crt"
+    preinstall_test_cert
     run bash "$SCRIPT" -y --force "$CERT"
     [ "$status" -eq 0 ]
     [[ "$output" == *"--force was specified, continuing"* ]]
     [[ "$output" == *"System trust: OK"* ]]
+}
+
+# ── Oneliner (curl | bash) syntax ─────────────────────────────────────────────
+#
+# Simulates: curl -fsSL <url> | bash -s -- <args>
+# When piped, bash reads the script from stdin; interactive reads inside the
+# script redirect to /dev/tty so arguments must be passed via -s -- <args>.
+
+@test "oneliner: piped script with positional cert arg installs cert" {
+    run_oneliner "$CERT" -y
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"CA Name  : Test CA"* ]]
+    [[ "$output" == *"System trust: OK"* ]]
+}
+
+@test "oneliner: piped script with --url flag installs cert" {
+    run_oneliner --url "$CERT" -y
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"CA Name  : Test CA"* ]]
+    [[ "$output" == *"System trust: OK"* ]]
+}
+
+@test "oneliner: piped script with no args fails with error" {
+    run_oneliner
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"No CA source provided"* ]]
+}
+
+@test "oneliner: piped script with --force reinstalls already-present cert" {
+    preinstall_test_cert
+    run_oneliner "$CERT" -y --force
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"--force was specified, continuing"* ]]
+    [[ "$output" == *"System trust: OK"* ]]
+}
+
+@test "oneliner: piped script skips already-installed cert" {
+    preinstall_test_cert
+    run_oneliner "$CERT" -y
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Already up-to-date"* ]]
 }
 
 @test "updates all browser NSS databases" {

@@ -52,6 +52,64 @@ BeforeAll {
         return ($quoted -join ' ')
     }
 
+    function global:Add-CertToStore([Security.Cryptography.X509Certificates.X509Certificate2]$Cert) {
+        $store = [Security.Cryptography.X509Certificates.X509Store]::new('Root', 'LocalMachine')
+        $store.Open('ReadWrite')
+        $store.Add($Cert)
+        $store.Close()
+    }
+
+    function global:Remove-CertFromStore([Security.Cryptography.X509Certificates.X509Certificate2]$Cert) {
+        $store = [Security.Cryptography.X509Certificates.X509Store]::new('Root', 'LocalMachine')
+        $store.Open('ReadWrite')
+        $store.Certificates | Where-Object Thumbprint -eq $Cert.Thumbprint | ForEach-Object { $store.Remove($_) }
+        $store.Close()
+    }
+
+    # Simulate: irm <url> | iex; Install [args]
+    # Invoke-Expression on the local script file mirrors what iex does when piped.
+    function global:Invoke-Oneliner {
+        param(
+            [string]$Url   = '',
+            [switch]$Force,
+            [switch]$Yes
+        )
+
+        $escapedPath  = $ScriptPath -replace "'", "''"
+        $installParts = [Collections.Generic.List[string]]::new()
+        $installParts.Add('Install')
+        if ($Url)   { $installParts.Add("-Url '$($Url -replace "'","''")'") }
+        if ($Force) { $installParts.Add('-Force') }
+        if ($Yes)   { $installParts.Add('-Yes') }
+        $installCall = $installParts -join ' '
+
+        $command = "Invoke-Expression (Get-Content '$escapedPath' -Raw); $installCall"
+        $argList  = @('-NoProfile', '-NonInteractive', '-Command', $command)
+
+        $psi = [Diagnostics.ProcessStartInfo]@{
+            FileName               = $script:PowerShellExe
+            RedirectStandardInput  = $true
+            RedirectStandardOutput = $true
+            RedirectStandardError  = $true
+            UseShellExecute        = $false
+        }
+        $psi.Arguments = Join-ProcessArguments -Argument $argList
+        $p = [Diagnostics.Process]::Start($psi)
+        $p.StandardInput.Close()
+        $stdoutTask = $p.StandardOutput.ReadToEndAsync()
+        $stderrTask = $p.StandardError.ReadToEndAsync()
+        $finished   = $p.WaitForExit($script:CmdTimeoutMs)
+        if (-not $finished) {
+            try { if (-not $p.HasExited) { $p.Kill() } } catch { }
+            try { $null = $p.WaitForExit([Math]::Min($script:CmdTimeoutMs, 2000)) } catch { }
+        }
+        if ($finished) {
+            $out = $stdoutTask.GetAwaiter().GetResult() + $stderrTask.GetAwaiter().GetResult()
+            return [PSCustomObject]@{ ExitCode = $p.ExitCode; Output = $out.Trim() }
+        }
+        return [PSCustomObject]@{ ExitCode = 124; Output = 'Command timed out' }
+    }
+
     function global:Invoke-Script {
         param(
             [string]$Url = '',
@@ -136,49 +194,34 @@ Describe 'install-ca.ps1 (Windows)' {
             $r.Output   | Should -Match 'System trust: OK'
         }
         finally {
-            $store = [Security.Cryptography.X509Certificates.X509Store]::new('Root', 'LocalMachine')
-            $store.Open('ReadWrite')
-            $store.Certificates | Where-Object Thumbprint -eq $cert.Thumbprint | ForEach-Object { $store.Remove($_) }
-            $store.Close()
+            Remove-CertFromStore $cert
         }
     }
 
     It 'already installed cert exits cleanly' {
         $cert = [Security.Cryptography.X509Certificates.X509Certificate2]::new($script:CertFile)
-        $store = [Security.Cryptography.X509Certificates.X509Store]::new('Root', 'LocalMachine')
-        $store.Open('ReadWrite')
-        $store.Add($cert)
-        $store.Close()
+        Add-CertToStore $cert
         try {
             $r = Invoke-Script -Url $script:CertFile
             $r.ExitCode | Should -Be 0
             $r.Output   | Should -Match 'Already up-to-date'
         }
         finally {
-            $store = [Security.Cryptography.X509Certificates.X509Store]::new('Root', 'LocalMachine')
-            $store.Open('ReadWrite')
-            $store.Certificates | Where-Object Thumbprint -eq $cert.Thumbprint | ForEach-Object { $store.Remove($_) }
-            $store.Close()
+            Remove-CertFromStore $cert
         }
     }
 
     It '-Force: already installed cert continues and reinstalls' {
         $cert = [Security.Cryptography.X509Certificates.X509Certificate2]::new($script:CertFile)
         try {
-            $store = [Security.Cryptography.X509Certificates.X509Store]::new('Root', 'LocalMachine')
-            $store.Open('ReadWrite')
-            $store.Add($cert)
-            $store.Close()
+            Add-CertToStore $cert
             $r = Invoke-Script -Url $script:CertFile -Yes -Force
             $r.ExitCode | Should -Be 0
             $r.Output   | Should -Match '-Force was specified, continuing'
             $r.Output   | Should -Match 'System trust: OK'
         }
         finally {
-            $store = [Security.Cryptography.X509Certificates.X509Store]::new('Root', 'LocalMachine')
-            $store.Open('ReadWrite')
-            $store.Certificates | Where-Object Thumbprint -eq $cert.Thumbprint | ForEach-Object { $store.Remove($_) }
-            $store.Close()
+            Remove-CertFromStore $cert
         }
     }
 
@@ -212,6 +255,54 @@ Describe 'install-ca.ps1 (Windows)' {
         # TODO: implement — Brave uses the Windows cert store, so trust is implicit after
         # system install. Spawn: brave --headless=new --no-sandbox --dump-dom https://...
         Set-ItResult -Skipped -Because 'not yet implemented'
+    }
+
+    # ── Oneliner (irm | iex) syntax ───────────────────────────────────────────────
+    #
+    # Simulates: irm <url> | iex; Install '<cert>' [-Yes] [-Force]
+    # Invoke-Expression on the local script file mirrors what iex does when piped.
+
+    It 'oneliner: Install with cert path installs cert' {
+        $cert = [Security.Cryptography.X509Certificates.X509Certificate2]::new($script:CertFile)
+        try {
+            $r = Invoke-Oneliner -Url $script:CertFile -Yes
+            $r.ExitCode | Should -Be 0
+            $r.Output   | Should -Match 'CA Name\s+:\s+Test CA'
+            $r.Output   | Should -Match 'System trust: OK'
+        } finally {
+            Remove-CertFromStore $cert
+        }
+    }
+
+    It 'oneliner: Install with no args fails with error' {
+        $r = Invoke-Oneliner
+        $r.ExitCode | Should -Be 1
+        $r.Output   | Should -Match 'No CA source provided'
+    }
+
+    It 'oneliner: Install -Force reinstalls already-present cert' {
+        $cert = [Security.Cryptography.X509Certificates.X509Certificate2]::new($script:CertFile)
+        try {
+            Add-CertToStore $cert
+            $r = Invoke-Oneliner -Url $script:CertFile -Yes -Force
+            $r.ExitCode | Should -Be 0
+            $r.Output   | Should -Match '-Force was specified, continuing'
+            $r.Output   | Should -Match 'System trust: OK'
+        } finally {
+            Remove-CertFromStore $cert
+        }
+    }
+
+    It 'oneliner: Install skips already-installed cert' {
+        $cert = [Security.Cryptography.X509Certificates.X509Certificate2]::new($script:CertFile)
+        try {
+            Add-CertToStore $cert
+            $r = Invoke-Oneliner -Url $script:CertFile
+            $r.ExitCode | Should -Be 0
+            $r.Output   | Should -Match 'Already up-to-date'
+        } finally {
+            Remove-CertFromStore $cert
+        }
     }
 
     It 'HTTPS URL trusts system CA after install' {
@@ -310,12 +401,7 @@ Describe 'install-ca.ps1 (Windows)' {
             }
             if ($installed) {
                 $httpsCaCert = [Security.Cryptography.X509Certificates.X509Certificate2]::new($script:HttpsCaFile)
-                $thumb = $httpsCaCert.Thumbprint
-                $httpsCaCert.Dispose()
-                $store = [Security.Cryptography.X509Certificates.X509Store]::new('Root', 'LocalMachine')
-                $store.Open('ReadWrite')
-                $store.Certificates | Where-Object Thumbprint -eq $thumb | ForEach-Object { $store.Remove($_) }
-                $store.Close()
+                try { Remove-CertFromStore $httpsCaCert } finally { $httpsCaCert.Dispose() }
             }
         }
     }
