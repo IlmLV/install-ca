@@ -4,6 +4,8 @@ set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 export TZ=UTC
 
+ARCH="$(dpkg --print-architecture)"
+
 apt-get update
 apt-get install -y --no-install-recommends \
   bats \
@@ -64,7 +66,7 @@ download_and_verify_gpg_key \
   "https://dl.google.com/linux/linux_signing_key.pub" \
   "$GOOGLE_LINUX_KEY_FPR" \
   "/etc/apt/keyrings/google-linux.gpg"
-echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/google-linux.gpg] https://dl.google.com/linux/chrome/deb/ stable main" \
+echo "deb [arch=$ARCH signed-by=/etc/apt/keyrings/google-linux.gpg] https://dl.google.com/linux/chrome/deb/ stable main" \
   > /etc/apt/sources.list.d/google-chrome.list
 
 # Install Microsoft Edge (deb)
@@ -74,7 +76,7 @@ download_and_verify_gpg_key \
   "https://packages.microsoft.com/keys/microsoft.asc" \
   "$MICROSOFT_EDGE_KEY_FPR" \
   "/etc/apt/keyrings/microsoft.gpg"
-echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/edge stable main" \
+echo "deb [arch=$ARCH signed-by=/etc/apt/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/edge stable main" \
   > /etc/apt/sources.list.d/microsoft-edge.list
 
 # Install Brave (deb)
@@ -84,7 +86,7 @@ download_and_verify_gpg_key \
   "https://brave-browser-apt-release.s3.brave.com/brave-browser-archive-keyring.gpg" \
   "$BRAVE_BROWSER_KEY_FPR" \
   "/etc/apt/keyrings/brave-browser-archive-keyring.gpg"
-echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/brave-browser-archive-keyring.gpg] https://brave-browser-apt-release.s3.brave.com/ stable main" \
+echo "deb [arch=$ARCH signed-by=/etc/apt/keyrings/brave-browser-archive-keyring.gpg] https://brave-browser-apt-release.s3.brave.com/ stable main" \
   > /etc/apt/sources.list.d/brave-browser-release.list
 
 # Install Firefox (Mozilla APT repo)
@@ -103,10 +105,15 @@ Pin-Priority: 1001
 EOF
 
 apt-get update
-apt-get install -y --no-install-recommends \
-  google-chrome-stable \
-  microsoft-edge-stable \
-  brave-browser
+
+if [[ "$ARCH" == "amd64" ]]; then
+  apt-get install -y --no-install-recommends \
+    google-chrome-stable \
+    microsoft-edge-stable \
+    brave-browser
+else
+  echo "INFO: Google Chrome, Microsoft Edge, and Brave are only available for amd64 — skipping (current arch: $ARCH)."
+fi
 
 if ! apt-get install -y --no-install-recommends firefox; then
   apt-get install -y --no-install-recommends firefox-esr
