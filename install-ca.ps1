@@ -1,7 +1,7 @@
 ﻿# Install a CA certificate into system and browser trust stores
 #
 # Browsers handled:
-#   - System trust store   (Windows Certificate Store — LocalMachine\Root)
+#   - System trust store   (Windows Certificate Store - LocalMachine\Root)
 #   - Google Chrome        uses Windows Certificate Store
 #   - Microsoft Edge       uses Windows Certificate Store
 #   - Brave                uses Windows Certificate Store
@@ -31,7 +31,7 @@ if ($PSVersionTable.PSVersion -lt [version]"5.1") {
     return 1
 }
 
-# PowerShell 5.x compatibility — $IsWindows is not defined in Windows PowerShell 5.x
+# PowerShell 5.x compatibility - $IsWindows is not defined in Windows PowerShell 5.x
 if (-not (Get-Variable 'IsWindows' -Scope Global -ErrorAction SilentlyContinue)) {
     $IsWindows = $true  # Windows PowerShell 5.x runs only on Windows
 }
@@ -67,12 +67,12 @@ try {
     [Console]::TreatControlCAsInput = $false
     $cancelKeyPressSubscription = Register-ObjectEvent -InputObject ([Console]) -EventName CancelKeyPress -SourceIdentifier $cancelKeyPressSourceId -Action {
         Write-Host ""
-        Write-Host "Interrupted — exiting."
+        Write-Host "Interrupted - exiting."
         Remove-Item -LiteralPath $Event.MessageData -Force -ErrorAction SilentlyContinue
         [Environment]::Exit(130)
     } -MessageData $CA_FILE
 } catch {
-    # Console not available (non-interactive or redirected I/O) — skip Ctrl+C handler.
+    # Console not available (non-interactive or redirected I/O) - skip Ctrl+C handler.
 }
 
 # ── Helpers ───────────────────────────────────────────────────────────────
@@ -85,7 +85,7 @@ function Confirm-Action([string]$Prompt) {
     try {
         $reply = Read-Host "$Prompt [y/N]"
     } catch {
-        # Non-interactive or input unavailable — treat as a declined confirmation.
+        # Non-interactive or input unavailable - treat as a declined confirmation.
         return $false
     }
     return $reply -match '^[Yy]$'
@@ -203,7 +203,7 @@ if (-not $basicConstraintsExtension.CertificateAuthority) {
     return 1
 }
 
-# Advisory KeyUsage check — warn if keyCertSign is absent but do not block installation.
+# Advisory KeyUsage check - warn if keyCertSign is absent but do not block installation.
 # BasicConstraints CA=TRUE is the authoritative check; real-world root CAs sometimes omit
 # or encode KeyUsage differently, so a hard failure here breaks legitimate use-cases.
 $keyUsageExtensionRaw = $cert.Extensions | Where-Object {
@@ -293,15 +293,15 @@ if ($existing) {
         }
     } elseif ($cert.NotAfter -gt $existing.NotAfter) {
         $days = [int]($cert.NotAfter - $existing.NotAfter).TotalDays
-        Write-Host "    Status   : Remote certificate is newer by $days day(s) — update recommended."
+        Write-Host "    Status   : Remote certificate is newer by $days day(s) - update recommended."
     } elseif ($cert.NotAfter -lt $existing.NotAfter) {
         $days = [int]($existing.NotAfter - $cert.NotAfter).TotalDays
-        Write-Host "    Status   : WARNING — Installed certificate expires $days day(s) LATER than the remote one."
+        Write-Host "    Status   : WARNING - Installed certificate expires $days day(s) LATER than the remote one."
     } else {
         Write-Host "    Status   : Different certificate with the same expiry date."
     }
 } else {
-    Write-Host "    Status   : No existing certificate found — fresh install."
+    Write-Host "    Status   : No existing certificate found - fresh install."
 }
 
 # ── 4. System trust store (Windows Certificate Store) ────────────────────────
@@ -310,7 +310,7 @@ if ($existing) {
 #  (Chrome, Edge, Brave, Chromium) because they delegate to the OS store.
 
 Write-Host ""
-Write-Host "==> Windows Certificate Store — LocalMachine\Root"
+Write-Host "==> Windows Certificate Store - LocalMachine\Root"
 Write-Host "    (covers Chrome, Edge, Brave, Chromium)"
 
 if (Confirm-Action "    Add '$CA_NAME' to the Windows Root CA store?") {
@@ -347,8 +347,8 @@ if (Confirm-Action "    Add '$CA_NAME' to the Windows Root CA store?") {
 # ── 5. Firefox ────────────────────────────────────────────────────────────────
 #
 #  Two approaches, tried in order:
-#   a) certutil.exe (ships with most Firefox installs) — updates the NSS cert9.db directly.
-#   b) ImportEnterpriseRoots policy — a registry key that tells Firefox to delegate
+#   a) certutil.exe (ships with most Firefox installs) - updates the NSS cert9.db directly.
+#   b) ImportEnterpriseRoots policy - a registry key that tells Firefox to delegate
 #      trust to the Windows Certificate Store.
 
 Write-Host ""
@@ -359,7 +359,7 @@ $hasEnterpriseRoots = (Test-Path $ffCertRegKey) -and
     ((Get-ItemProperty $ffCertRegKey -Name 'ImportEnterpriseRoots' -ErrorAction SilentlyContinue).ImportEnterpriseRoots -eq 1)
 
 if ($hasEnterpriseRoots) {
-    Write-Host "    ImportEnterpriseRoots policy is set — Firefox trusts the Windows store."
+    Write-Host "    ImportEnterpriseRoots policy is set - Firefox trusts the Windows store."
     Write-Host "    No additional action needed."
 } else {
     # Only proceed with Firefox-specific steps if Firefox is actually installed.
@@ -369,7 +369,7 @@ if ($hasEnterpriseRoots) {
     ) | Where-Object { Test-Path $_ } | Select-Object -First 1
 
     if (-not $ffExe) {
-        Write-Host "    Firefox is not installed — skipping."
+        Write-Host "    Firefox is not installed - skipping."
     } else {
         # Try certutil first
         $certutil = $null
@@ -393,7 +393,7 @@ if ($hasEnterpriseRoots) {
             }
 
             if ($ffDirs.Count -eq 0) {
-                Write-Host "    No Firefox profiles found — skipping."
+                Write-Host "    No Firefox profiles found - skipping."
             } else {
                 Write-Host "    Found profiles:"
                 $ffDirs | ForEach-Object { Write-Host "      $_" }
@@ -408,7 +408,7 @@ if ($hasEnterpriseRoots) {
                 }
             }
         } else {
-            # certutil not available — fall back to the enterprise-roots registry policy
+            # certutil not available - fall back to the enterprise-roots registry policy
             Write-Host "    certutil.exe not found in Firefox install directories."
             Write-Host "    Falling back to ImportEnterpriseRoots policy (makes Firefox trust the Windows store)."
 
@@ -417,7 +417,7 @@ if ($hasEnterpriseRoots) {
                     New-Item -Path $ffCertRegKey -Force | Out-Null
                 }
                 Set-ItemProperty -Path $ffCertRegKey -Name 'ImportEnterpriseRoots' -Value 1 -Type DWord
-                Write-Host "    Done — Firefox will now import roots from the Windows Certificate Store."
+                Write-Host "    Done - Firefox will now import roots from the Windows Certificate Store."
             } else {
                 Write-Host "    Skipped."
             }

@@ -1,4 +1,4 @@
-﻿# Generate test certificates at runtime — no private keys stored in the repo.
+# Generate test certificates at runtime - no private keys stored in the repo.
 # Usage: powershell -File generate-certs.ps1 -OutputDir <path>
 #   OutputDir defaults to $env:TEMP\test-certs-<guid>
 param(
@@ -27,11 +27,11 @@ try {
     $pemContent = "-----BEGIN CERTIFICATE-----`n$b64Lines`n-----END CERTIFICATE-----`n"
     [IO.File]::WriteAllText((Join-Path $OutputDir 'test-ca.crt'), $pemContent, [Text.Encoding]::ASCII)
 } finally {
-    # Always remove from cert store — it was only needed for export
+    # Always remove from cert store - it was only needed for export
     Remove-Item "Cert:\CurrentUser\My\$($testCert.Thumbprint)" -Force -ErrorAction SilentlyContinue
 }
 
-# ── Leaf certificate (no CA extensions) — used to verify non-CA cert rejection ─
+# ── Leaf certificate (no CA extensions) - used to verify non-CA cert rejection ─
 $leafCert = New-SelfSignedCertificate `
     -Type Custom `
     -Subject "CN=Test Leaf" `
