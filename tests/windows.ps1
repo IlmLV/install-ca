@@ -83,7 +83,7 @@ BeforeAll {
         if ($Yes)   { $installParts.Add('-Yes') }
         $installCall = $installParts -join ' '
 
-        $command = "Invoke-Expression (Get-Content '$escapedPath' -Raw); $installCall"
+        $command = "Invoke-Expression (Get-Content '$escapedPath' -Raw); `$__ec = $installCall; if (`$null -ne `$__ec) { exit [int]`$__ec }"
         $argList  = @('-NoProfile', '-NonInteractive', '-Command', $command)
 
         $psi = [Diagnostics.ProcessStartInfo]@{
