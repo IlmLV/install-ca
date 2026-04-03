@@ -37,8 +37,11 @@ if (-not (Get-Variable 'IsWindows' -Scope Global -ErrorAction SilentlyContinue))
 }
 
 # Ensure TLS 1.2 is available (PowerShell 5.x / .NET Framework defaults to TLS 1.0)
+# Save and restore so irm | iex usage doesn't leave the caller's session mutated.
+$originalSecurityProtocol = $null
 if ($PSVersionTable.PSVersion.Major -lt 6) {
-    [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+    $originalSecurityProtocol = [Net.ServicePointManager]::SecurityProtocol
+    [Net.ServicePointManager]::SecurityProtocol = $originalSecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 }
 
 # -- Elevation check -----------------------------------------------------------
@@ -456,6 +459,14 @@ return 0
         [Console]::TreatControlCAsInput = $originalTreatControlCAsInput
     } catch {
         # Ignore failures restoring console state
+    }
+
+    if ($null -ne $originalSecurityProtocol) {
+        try {
+            [Net.ServicePointManager]::SecurityProtocol = $originalSecurityProtocol
+        } catch {
+            # Ignore failures restoring SecurityProtocol
+        }
     }
 
     if ($null -ne $cancelKeyPressSubscription) {
