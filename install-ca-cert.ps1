@@ -9,7 +9,7 @@
 #   - Chromium             uses Windows Certificate Store
 #   - Firefox              cert9.db via certutil.exe, or ImportEnterpriseRoots registry policy
 #
-# Usage: pwsh -File install-ca-cert.ps1 [-CASource|-u <url-or-path>] [-Force|-f] [-Yes|-y]
+# Usage: powershell -File install-ca-cert.ps1 [-CASource|-u <url-or-path>] [-Force|-f] [-Yes|-y]
 #   or:  iex "& {$(irm https://raw.githubusercontent.com/IlmLV/install-ca-cert/main/install-ca-cert.ps1)} -u '<url>' -y"
 
 param(

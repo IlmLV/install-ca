@@ -1,5 +1,5 @@
 # Generate test certificates at runtime — no private keys stored in the repo.
-# Usage: pwsh -File generate-certs.ps1 -OutputDir <path>
+# Usage: powershell -File generate-certs.ps1 -OutputDir <path>
 #   OutputDir defaults to $env:TEMP\test-certs-<guid>
 param(
     [string]$OutputDir = (Join-Path ([IO.Path]::GetTempPath()) "test-certs-$([guid]::NewGuid().ToString('N'))")

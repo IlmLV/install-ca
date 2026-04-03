@@ -4,5 +4,6 @@
 # Shell scripts: LF always
 *.sh text eol=lf
 
-# PowerShell scripts: CRLF on checkout, preserve UTF-8 BOM
-*.ps1 text eol=crlf working-tree-encoding=UTF-8-BOM
+# PowerShell scripts: CRLF on checkout
+# Note: `UTF-8-BOM` working-tree-encoding is not supported by all iconv builds.
+*.ps1 text eol=crlf

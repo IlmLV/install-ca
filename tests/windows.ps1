@@ -1,6 +1,6 @@
 # Pester tests for install-ca-cert.ps1 on Windows runners
 #
-# Each test invokes install-ca-cert.ps1 directly as a child pwsh process,
+# Each test invokes install-ca-cert.ps1 directly as a child PowerShell process,
 # passing -CASource / -Yes / -Force as named parameters — the same pattern
 # used by the bash tests (e.g. "bash install-ca-cert.sh -y $CERT").
 
@@ -9,11 +9,15 @@ BeforeAll {
     $currentIdentity  = [System.Security.Principal.WindowsIdentity]::GetCurrent()
     $currentPrincipal = New-Object System.Security.Principal.WindowsPrincipal($currentIdentity)
     if (-not $currentPrincipal.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)) {
-        throw "These tests modify LocalMachine\Root and must be run from an elevated (Administrator) pwsh session."
+        throw "These tests modify LocalMachine\Root and must be run from an elevated (Administrator) PowerShell session."
     }
 
     $RepoRoot   = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
     $ScriptPath = Join-Path $RepoRoot 'install-ca-cert.ps1'
+    $script:PowerShellExe = (Get-Process -Id $PID).Path
+    if (-not $script:PowerShellExe) {
+        $script:PowerShellExe = if ($PSVersionTable.PSEdition -eq 'Core') { 'pwsh' } else { 'powershell' }
+    }
 
     $rawTimeout = if ($env:CMD_TIMEOUT_SECS) { $env:CMD_TIMEOUT_SECS } else { '10' }
     $script:CmdTimeoutMs = [int]($rawTimeout -replace 's$', '') * 1000
@@ -32,6 +36,22 @@ BeforeAll {
     # which the script treats as "no input" and exits with error.  Both stdout and stderr are
     # read asynchronously to avoid the deadlock that sequential ReadToEnd() can cause when the
     # child process fills one pipe while we are blocked draining the other.
+    function Join-ProcessArguments {
+        param([string[]]$Argument)
+
+        $quoted = foreach ($item in $Argument) {
+            if ($null -eq $item) {
+                '""'
+            } elseif ($item -match '[\s"]') {
+                '"' + ($item -replace '"', '\"') + '"'
+            } else {
+                $item
+            }
+        }
+
+        return ($quoted -join ' ')
+    }
+
     function global:Invoke-Script {
         param(
             [string]$CASource = '',
@@ -49,13 +69,13 @@ BeforeAll {
         if ($Yes)      { $argList.Add('-Yes') }
 
         $psi = [Diagnostics.ProcessStartInfo]@{
-            FileName               = 'pwsh'
+            FileName               = $script:PowerShellExe
             RedirectStandardInput  = $true
             RedirectStandardOutput = $true
             RedirectStandardError  = $true
             UseShellExecute        = $false
         }
-        foreach ($a in $argList) { $psi.ArgumentList.Add($a) }
+        $psi.Arguments = Join-ProcessArguments -Argument $argList.ToArray()
         $p = [Diagnostics.Process]::Start($psi)
         # Always close stdin immediately so any Read-Host call receives EOF and returns null
         $p.StandardInput.Close()
@@ -209,15 +229,18 @@ Describe 'install-ca-cert.ps1 (Windows)' {
             FileName        = 'openssl'
             UseShellExecute = $false
         }
-        $opensslPsi.ArgumentList.Add('s_server')
-        $opensslPsi.ArgumentList.Add('-quiet')
-        $opensslPsi.ArgumentList.Add('-accept')
-        $opensslPsi.ArgumentList.Add($port.ToString())
-        $opensslPsi.ArgumentList.Add('-cert')
-        $opensslPsi.ArgumentList.Add($script:HttpsServerCrt)
-        $opensslPsi.ArgumentList.Add('-key')
-        $opensslPsi.ArgumentList.Add($script:HttpsServerKey)
-        $opensslPsi.ArgumentList.Add('-www')
+        $opensslArgs = @(
+            's_server'
+            '-quiet'
+            '-accept'
+            $port.ToString()
+            '-cert'
+            $script:HttpsServerCrt
+            '-key'
+            $script:HttpsServerKey
+            '-www'
+        )
+        $opensslPsi.Arguments = Join-ProcessArguments -Argument $opensslArgs
         $opensslProc = [Diagnostics.Process]::Start($opensslPsi)
 
         $installed = $false
@@ -244,15 +267,18 @@ Describe 'install-ca-cert.ps1 (Windows)' {
             $installed = $true
 
             $psi = [Diagnostics.ProcessStartInfo]@{
-                FileName               = 'pwsh'
+                FileName               = $script:PowerShellExe
                 RedirectStandardOutput = $true
                 RedirectStandardError  = $true
                 UseShellExecute        = $false
             }
-            $psi.ArgumentList.Add('-NoProfile')
-            $psi.ArgumentList.Add('-NonInteractive')
-            $psi.ArgumentList.Add('-Command')
-            $psi.ArgumentList.Add("Invoke-WebRequest https://127.0.0.1:$port/ | Out-Null")
+            $childArgs = @(
+                '-NoProfile'
+                '-NonInteractive'
+                '-Command'
+                "Invoke-WebRequest https://127.0.0.1:$port/ | Out-Null"
+            )
+            $psi.Arguments = Join-ProcessArguments -Argument $childArgs
             $p = [Diagnostics.Process]::Start($psi)
             $stdoutTask = $p.StandardOutput.ReadToEndAsync()
             $stderrTask = $p.StandardError.ReadToEndAsync()
@@ -261,7 +287,7 @@ Describe 'install-ca-cert.ps1 (Windows)' {
                 try { $p.Kill() } catch { }
                 $finAfterKill = $p.WaitForExit($script:CmdTimeoutMs)
                 if (-not $finAfterKill) {
-                    throw "Child pwsh process for HTTPS Invoke-WebRequest did not exit within $($script:CmdTimeoutMs) ms even after Kill(); aborting test to avoid hang."
+                    throw "Child PowerShell process for HTTPS Invoke-WebRequest did not exit within $($script:CmdTimeoutMs) ms even after Kill(); aborting test to avoid hang."
                 }
             }
             [void]$stdoutTask.GetAwaiter().GetResult()
