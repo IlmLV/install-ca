@@ -38,7 +38,7 @@ $leafCert = New-SelfSignedCertificate `
     -Subject "CN=Test Leaf" `
     -CertStoreLocation "Cert:\CurrentUser\My" `
     -NotAfter (Get-Date).AddYears(1) `
-    -TextExtension @("2.5.29.19={text}CA=false")
+    -TextExtension @("2.5.29.19={text}CA=false")    # 2.5.29.19 = BasicConstraints OID
 
 try {
     $leafBytes = $leafCert.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert)
