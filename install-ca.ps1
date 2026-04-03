@@ -497,25 +497,29 @@ function ConvertTo-InstallArguments {
         Force = $false
         Yes = $false
     }
+    $urlSet = $false
 
     for ($i = 0; $i -lt $Arguments.Count; $i++) {
         $arg = $Arguments[$i]
         switch ($arg) {
-            '-Url' { if ($i + 1 -ge $Arguments.Count) { throw "Missing value for $arg" }; $i++; $result.Url = $Arguments[$i] }
-            '--url' { if ($i + 1 -ge $Arguments.Count) { throw "Missing value for $arg" }; $i++; $result.Url = $Arguments[$i] }
-            '-u' { if ($i + 1 -ge $Arguments.Count) { throw "Missing value for $arg" }; $i++; $result.Url = $Arguments[$i] }
+            { $_ -in '-Url','--url','-u' } {
+                if ($i + 1 -ge $Arguments.Count) { throw "Missing value for $arg" }
+                $i++
+                if ($urlSet) { throw "Multiple CA sources provided: '$($result.Url)' and '$($Arguments[$i])'" }
+                $result.Url = $Arguments[$i]
+                $urlSet = $true
+            }
             '--force' { $result.Force = $true }
-            '-f' { $result.Force = $true }
-            '-Force' { $result.Force = $true }
-            '--yes' { $result.Yes = $true }
-            '-y' { $result.Yes = $true }
-            '-Yes' { $result.Yes = $true }
+            '-f'      { $result.Force = $true }
+            '-Force'  { $result.Force = $true }
+            '--yes'   { $result.Yes = $true }
+            '-y'      { $result.Yes = $true }
+            '-Yes'    { $result.Yes = $true }
             default {
-                if ([string]::IsNullOrWhiteSpace($result.Url)) {
-                    $result.Url = $arg
-                } else {
-                    throw "Multiple positional arguments: '$($result.Url)' and '$arg'"
-                }
+                if ($arg -like '-*') { throw "Unknown option: $arg" }
+                if ($urlSet) { throw "Multiple CA sources provided: '$($result.Url)' and '$arg'" }
+                $result.Url = $arg
+                $urlSet = $true
             }
         }
     }
