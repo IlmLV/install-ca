@@ -507,6 +507,9 @@ $shouldAutoRun = $runningFromFile -or ($args.Count -gt 0)
 if (-not $shouldAutoRun) {
     if (-not $invokedAsDotSource) {
         $global:__Install_InstallCalled = $false
+        if (-not (Get-Variable '__Install_OnIdleSub' -Scope Global -ErrorAction SilentlyContinue)) {
+            $global:__Install_OnIdleSub = $null
+        }
 
         if ($global:__Install_OnIdleSub) {
             try { Unregister-Event -SubscriptionId $global:__Install_OnIdleSub.Id -ErrorAction SilentlyContinue } catch { }
