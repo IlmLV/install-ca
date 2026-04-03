@@ -24,7 +24,7 @@ param(
 
 $global:__Install_InstallCalled = $true
 
-if ($PSVersionTable.PSVersion.Major -lt 5) {
+if ($PSVersionTable.PSVersion -lt [version]"5.1") {
     Write-Error "PowerShell 5.1+ is required." -ErrorAction Continue
     return 1
 }
@@ -310,19 +310,13 @@ if (Confirm-Action "    Add '$CA_NAME' to the Windows Root CA store?") {
         if ($existingThumbprintCerts) {
             Write-Host "    Certificate with the same thumbprint is already present in LocalMachine\Root. Skipping add to avoid duplicate."
         } else {
-            # Optionally clean up older certificates with the same subject but different thumbprints
+            # Do not remove certificates by subject: subjects are not guaranteed to be unique.
             $subjectMatches = $store.Certificates | Where-Object { $_.Subject -eq $cert.Subject }
             if ($subjectMatches) {
+                Write-Host "    Warning: Existing certificate(s) with the same subject are present in LocalMachine\Root."
+                Write-Host "             No existing certificates will be removed automatically because subject matches are not a safe identifier."
                 if ($Force) {
-                    foreach ($old in $subjectMatches) {
-                        if ($old.Thumbprint -ne $cert.Thumbprint) {
-                            Write-Host "    Removing existing certificate with same subject but different thumbprint $($old.Thumbprint) from LocalMachine\Root."
-                            $store.Remove($old)
-                        }
-                    }
-                } else {
-                    Write-Host "    Warning: Existing certificate(s) with the same subject are present in LocalMachine\Root."
-                    Write-Host "             To replace older certificates with the new one, re-run this script with -Force."
+                    Write-Host "             -Force does not remove same-subject certificates; use exact thumbprints for any manual cleanup."
                 }
             }
             $store.Add($cert)
@@ -496,7 +490,7 @@ function ConvertTo-InstallArguments {
                 if ([string]::IsNullOrWhiteSpace($result.Url)) {
                     $result.Url = $arg
                 } else {
-                    throw "Unknown argument: $arg"
+                    throw "Multiple positional arguments: '$($result.CASource)' and '$arg'"
                 }
             }
         }

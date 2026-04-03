@@ -47,8 +47,13 @@ download_and_verify_gpg_key() {
     exit 1
   fi
 
-  # Convert to a keyring suitable for APT
-  gpg --dearmor -o "$target" "$tmp"
+  # Install a keyring suitable for APT. Some sources provide ASCII-armored
+  # keys that need dearmoring, while others already provide a binary .gpg
+  # keyring. Try dearmoring first and fall back to copying the verified file.
+  if ! gpg --dearmor -o "$target" "$tmp"; then
+    rm -f "$target"
+    cp "$tmp" "$target"
+  fi
   rm -f "$tmp"
 }
 
