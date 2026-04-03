@@ -1,5 +1,4 @@
-﻿#Requires -Version 5.1
-# Install a CA certificate into system and browser trust stores
+﻿# Install a CA certificate into system and browser trust stores
 #
 # Browsers handled:
 #   - System trust store   (Windows Certificate Store — LocalMachine\Root)
@@ -9,17 +8,26 @@
 #   - Chromium             uses Windows Certificate Store
 #   - Firefox              cert9.db via certutil.exe, or ImportEnterpriseRoots registry policy
 #
-# Usage: powershell -File install-ca-cert.ps1 [-CASource|-u <url-or-path>] [-Force|-f] [-Yes|-y]
-#   or:  iex "& {$(irm https://raw.githubusercontent.com/IlmLV/install-ca-cert/main/install-ca-cert.ps1)} -u '<url>' -y"
+# Usage (file): powershell -File install-ca-cert.ps1 [-CASource|-u <url-or-path>] [-Force|-f] [-Yes|-y]
+# Usage (iex interactive):      irm https://raw.githubusercontent.com/IlmLV/install-ca-cert/main/install-ca-cert.ps1 | iex
+# Usage (iex non-interactive):  irm https://raw.githubusercontent.com/IlmLV/install-ca-cert/main/install-ca-cert.ps1 | iex; Install '<url>' -y
 
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
+
+function Install {
 param(
     [Alias('u')][string]$CASource = "",
     [Alias('f')][switch]$Force,
     [Alias('y')][switch]$Yes
 )
 
-Set-StrictMode -Version Latest
-$ErrorActionPreference = "Stop"
+$global:__Install_InstallCalled = $true
+
+if ($PSVersionTable.PSVersion.Major -lt 5) {
+    Write-Error "PowerShell 5.1+ is required." -ErrorAction Continue
+    return 1
+}
 
 # PowerShell 5.x compatibility — $IsWindows is not defined in Windows PowerShell 5.x
 if (-not (Get-Variable 'IsWindows' -Scope Global -ErrorAction SilentlyContinue)) {
@@ -37,7 +45,7 @@ if ($IsWindows) {
     $principal = New-Object System.Security.Principal.WindowsPrincipal($id)
     if (-not $principal.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)) {
         Write-Error "This script must be run as Administrator. Right-click PowerShell and select 'Run as Administrator', then try again." -ErrorAction Continue
-        exit 1
+        return 1
     }
 }
 
@@ -120,7 +128,7 @@ if (-not [string]::IsNullOrWhiteSpace($CASource)) {
 
 if ([string]::IsNullOrWhiteSpace($CA_SOURCE)) {
     Write-Error "No CA source provided." -ErrorAction Continue
-    exit 1
+    return 1
 }
 
 # ── 2. Fetch or copy the CA certificate ───────────────────────────────────────
@@ -141,7 +149,7 @@ if ($CA_SOURCE -match '^https?://') {
             Invoke-InsecureDownload -Uri $CA_SOURCE -OutFile $CA_FILE
         } else {
             Write-Error "Download aborted." -ErrorAction Continue
-            exit 1
+            return 1
         }
     }
 } else {
@@ -157,7 +165,7 @@ try {
     $cert = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($CA_FILE)
 } catch {
     Write-Error "File is not a valid certificate." -ErrorAction Continue
-    exit 1
+    return 1
 }
 
 Write-Host "    Subject  : $($cert.Subject)"
@@ -169,7 +177,7 @@ $basicConstraintsExtensionRaw = $cert.Extensions | Where-Object {
 } | Select-Object -First 1
 if ($null -eq $basicConstraintsExtensionRaw) {
     Write-Error "The provided certificate does not contain a BasicConstraints extension and cannot be used as a CA certificate." -ErrorAction Continue
-    exit 1
+    return 1
 }
 $basicConstraintsExtension = $basicConstraintsExtensionRaw -as [System.Security.Cryptography.X509Certificates.X509BasicConstraintsExtension]
 if ($null -eq $basicConstraintsExtension) {
@@ -177,7 +185,7 @@ if ($null -eq $basicConstraintsExtension) {
 }
 if (-not $basicConstraintsExtension.CertificateAuthority) {
     Write-Error "The provided certificate is not a CA certificate (BasicConstraints CA=FALSE). Only CA certificates can be installed into the root trust store." -ErrorAction Continue
-    exit 1
+    return 1
 }
 
 # Advisory KeyUsage check — warn if keyCertSign is absent but do not block installation.
@@ -217,7 +225,7 @@ if (-not $IsWindows) {
         $ucOutput = & update-ca-certificates 2>&1
         if ($LASTEXITCODE -ne 0) {
             Write-Error "update-ca-certificates failed (exit $LASTEXITCODE): $ucOutput" -ErrorAction Continue
-            exit 1
+            return 1
         }
         Write-Host "    Installed: $systemCaFile"
     } else {
@@ -226,7 +234,7 @@ if (-not $IsWindows) {
     }
     Write-Host ""
     Write-Host "==> All done. Fully quit and restart any open browsers for changes to take effect."
-    exit 0
+    return 0
 }
 
 # ── 3. Check existing certificate in system store ────────────────────────────
@@ -266,7 +274,7 @@ if ($existing) {
             Write-Host "    Status   : Already up-to-date but -Force was specified, continuing."
         } else {
             Write-Host "    Status   : Already up-to-date (same certificate). Nothing to do."
-            exit 0
+            return 0
         }
     } elseif ($cert.NotAfter -gt $existing.NotAfter) {
         $days = [int]($cert.NotAfter - $existing.NotAfter).TotalDays
@@ -428,11 +436,12 @@ try {
 if ($found) {
     Write-Host "    System trust: OK (found in LocalMachine\Root)"
 } else {
-    Write-Host "    System trust: NOT FOUND in LocalMachine\Root"
+Write-Host "    System trust: NOT FOUND in LocalMachine\Root"
 }
 
 Write-Host ""
 Write-Host "==> All done. Fully quit and restart any open browsers for changes to take effect."
+return 0
 } finally {
     try {
         [Console]::TreatControlCAsInput = $originalTreatControlCAsInput
@@ -459,3 +468,86 @@ Write-Host "==> All done. Fully quit and restart any open browsers for changes t
 
     Remove-Item -LiteralPath $CA_FILE -Force -ErrorAction SilentlyContinue
 }
+}
+
+function ConvertTo-InstallArguments {
+    param(
+        [string[]]$Arguments
+    )
+
+    $result = @{
+        CASource = ""
+        Force = $false
+        Yes = $false
+    }
+
+    for ($i = 0; $i -lt $Arguments.Count; $i++) {
+        $arg = $Arguments[$i]
+        switch ($arg) {
+            '--url' { if ($i + 1 -ge $Arguments.Count) { throw "Missing value for $arg" }; $i++; $result.CASource = $Arguments[$i] }
+            '-u' { if ($i + 1 -ge $Arguments.Count) { throw "Missing value for $arg" }; $i++; $result.CASource = $Arguments[$i] }
+            '-CASource' { if ($i + 1 -ge $Arguments.Count) { throw "Missing value for $arg" }; $i++; $result.CASource = $Arguments[$i] }
+            '--force' { $result.Force = $true }
+            '-f' { $result.Force = $true }
+            '-Force' { $result.Force = $true }
+            '--yes' { $result.Yes = $true }
+            '-y' { $result.Yes = $true }
+            '-Yes' { $result.Yes = $true }
+            default {
+                if ([string]::IsNullOrWhiteSpace($result.CASource)) {
+                    $result.CASource = $arg
+                } else {
+                    throw "Unknown argument: $arg"
+                }
+            }
+        }
+    }
+
+    return $result
+}
+
+$invokedAsDotSource = $MyInvocation.InvocationName -eq '.'
+$runningFromFile = -not [string]::IsNullOrWhiteSpace($PSCommandPath)
+$shouldAutoRun = $runningFromFile -or ($args.Count -gt 0)
+
+if (-not $shouldAutoRun) {
+    if (-not $invokedAsDotSource) {
+        $global:__Install_InstallCalled = $false
+
+        if ($global:__Install_OnIdleSub) {
+            try { Unregister-Event -SubscriptionId $global:__Install_OnIdleSub.Id -ErrorAction SilentlyContinue } catch { }
+            try { Remove-Job -Id $global:__Install_OnIdleSub.Id -Force -ErrorAction SilentlyContinue } catch { }
+            $global:__Install_OnIdleSub = $null
+        }
+
+        $global:__Install_OnIdleSub = Register-EngineEvent -SourceIdentifier PowerShell.OnIdle -Action {
+            if (-not $global:__Install_InstallCalled) {
+                try {
+                    $code = Install
+                    if ($null -eq $code) { $code = 0 }
+                    $global:LASTEXITCODE = [int]$code
+                } catch {
+                    Write-Error $_
+                }
+            }
+
+            if ($global:__Install_OnIdleSub) {
+                try { Unregister-Event -SubscriptionId $global:__Install_OnIdleSub.Id -ErrorAction SilentlyContinue } catch { }
+                try { Remove-Job -Id $global:__Install_OnIdleSub.Id -Force -ErrorAction SilentlyContinue } catch { }
+                $global:__Install_OnIdleSub = $null
+            }
+        }
+    }
+    return
+}
+
+$parsed = ConvertTo-InstallArguments -Arguments $args
+$exitCode = Install -CASource $parsed.CASource -Force:$parsed.Force -Yes:$parsed.Yes
+if ($null -eq $exitCode) { $exitCode = 0 }
+
+if ($runningFromFile -and -not $invokedAsDotSource) {
+    exit ([int]$exitCode)
+}
+
+$global:LASTEXITCODE = [int]$exitCode
+return

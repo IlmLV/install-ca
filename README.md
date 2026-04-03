@@ -1,4 +1,4 @@
-# install-ca-cert
+﻿# install-ca-cert
 
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows-blue)](https://github.com/IlmLV/install-ca-cert)
 [![Tests](https://github.com/IlmLV/install-ca-cert/actions/workflows/test.yml/badge.svg)](https://github.com/IlmLV/install-ca-cert/actions/workflows/test.yml)
@@ -78,7 +78,7 @@ irm https://raw.githubusercontent.com/IlmLV/install-ca-cert/main/install-ca-cert
 
 **Non-interactive** — certificate URL and auto-approve provided upfront:
 ```powershell
-iex "& {$(irm https://raw.githubusercontent.com/IlmLV/install-ca-cert/main/install-ca-cert.ps1)} -u 'https://example.com/ca.crt' -y"
+irm https://raw.githubusercontent.com/IlmLV/install-ca-cert/main/install-ca-cert.ps1 | iex; Install 'https://example.com/ca.crt' -y
 ```
 
 > Requires PowerShell 5.1+ and Administrator privileges.
