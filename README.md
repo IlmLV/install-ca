@@ -27,7 +27,7 @@ Modern systems maintain multiple independent certificate trust stores — one fo
 | Platform | Script | Requirements |
 | -------- | ------ | ------------ |
 | ![Linux](https://img.shields.io/badge/Debian%20%7C%20Ubuntu-FCC624?logo=linux&logoColor=black) | `install-ca.sh` | `bash`, `curl`, `openssl`, `sudo`, `libnss3-tools` (auto-installed if missing) |
-| ![Windows](https://img.shields.io/badge/Windows-0078D4?logo=windows&logoColor=white) | `install-ca.ps1` | PowerShell 5.1+, Administrator privileges |
+| ![Windows](https://img.shields.io/badge/Windows_10%2B-0078D4?logo=windows&logoColor=white) | `install-ca.ps1` | Windows 10+, PowerShell 5.1+, Administrator privileges |
 
 ---
 
@@ -81,7 +81,7 @@ irm https://raw.githubusercontent.com/IlmLV/install-ca/main/install-ca.ps1 | iex
 irm https://raw.githubusercontent.com/IlmLV/install-ca/main/install-ca.ps1 | iex; Install 'https://example.com/ca.crt' -y
 ```
 
-> Requires PowerShell 5.1+ and Administrator privileges.
+> Requires Windows 10+, PowerShell 5.1+, and Administrator privileges.
 
 ---
 
