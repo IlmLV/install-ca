@@ -84,7 +84,7 @@ confirm() {
     return 0
   fi
   reply=""
-  if ! read -r -p "$1 [y/N] " reply; then
+  if ! read -r -p "$1 [y/N] " reply </dev/tty; then
     reply=""
   fi
   [[ "$reply" =~ ^[Yy]$ ]]
@@ -142,7 +142,7 @@ find_nss_dbs() {
 if [[ -n "$CA_SOURCE_ARG" ]]; then
   CA_SOURCE="$CA_SOURCE_ARG"
 else
-  if ! read -r -p "Enter CA certificate URL or file path: " CA_SOURCE; then
+  if ! read -r -p "Enter CA certificate URL or file path: " CA_SOURCE </dev/tty; then
     CA_SOURCE=""
   fi
 fi
