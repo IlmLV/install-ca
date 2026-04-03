@@ -490,7 +490,7 @@ function ConvertTo-InstallArguments {
                 if ([string]::IsNullOrWhiteSpace($result.Url)) {
                     $result.Url = $arg
                 } else {
-                    throw "Multiple positional arguments: '$($result.CASource)' and '$arg'"
+                    throw "Multiple positional arguments: '$($result.Url)' and '$arg'"
                 }
             }
         }

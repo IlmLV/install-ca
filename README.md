@@ -38,7 +38,7 @@ Modern systems maintain multiple independent certificate trust stores — one fo
 | Google Chrome  | Shared NSS `~/.pki/nssdb`                                          | Windows Certificate Store¹                |
 | Chromium       | Shared NSS `~/.pki/nssdb` (deb) · snap NSS `~/snap/chromium/`      | Windows Certificate Store¹                |
 | Microsoft Edge | Shared NSS `~/.pki/nssdb`                                          | Windows Certificate Store¹                |
-| Brave          | Snap NSS `~/snap/brave/`                                           | Windows Certificate Store¹                |
+| Brave          | Shared NSS `~/.pki/nssdb` (deb) · snap NSS `~/snap/brave/` (snap)  | Windows Certificate Store¹                |
 | Firefox        | Per-profile `cert9.db` (`~/.mozilla/firefox/` · `~/snap/firefox/`) | Per-profile `cert9.db` via `certutil.exe` |
 
 > ¹ `LocalMachine\Root` — one write covers all Chromium-based browsers on Windows.
