@@ -9,11 +9,12 @@ bash /workspace/tests/generate-certs.sh "$CERTS_DIR"
 # Export paths for BATS tests
 export TEST_CERT="$CERTS_DIR/test-ca.crt"
 export HTTPS_CA="$CERTS_DIR/https-ca.crt"
+export LEAF_CERT="$CERTS_DIR/leaf.crt"
 
 openssl s_server -quiet -accept 8443 \
   -cert "$CERTS_DIR/https-server.crt" \
   -key "$CERTS_DIR/https-server.key" \
-  -www </dev/null >/dev/null 2>&1 &
+  -www < <(tail -f /dev/null) >/dev/null 2>&1 &
 https_pid=$!
 
 trap 'kill "$https_pid" 2>/dev/null || true' EXIT

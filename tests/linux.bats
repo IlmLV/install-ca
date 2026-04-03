@@ -4,6 +4,7 @@
 SCRIPT="/workspace/install-ca.sh"
 CERT="${TEST_CERT:-/workspace/tests/runtime-certs/test-ca.crt}"
 HTTPS_CA="${HTTPS_CA:-/workspace/tests/runtime-certs/https-ca.crt}"
+LEAF_CERT="${LEAF_CERT:-/workspace/tests/runtime-certs/leaf.crt}"
 SYSTEM_CA_DIR="/usr/local/share/ca-certificates"
 SHARED_NSS_DIR="$HOME/.pki/nssdb"
 BRAVE_NSS_DIR="$HOME/snap/brave/current/.pki/nssdb"
@@ -105,6 +106,12 @@ teardown() {
     run bash -c "bash '$SCRIPT' </dev/null"
     [ "$status" -eq 1 ]
     [[ "$output" == *"No CA source provided"* ]]
+}
+
+@test "non-CA leaf cert is rejected with exit code 1" {
+    run bash "$SCRIPT" -y "$LEAF_CERT"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"not a CA certificate"* || "$output" == *"BasicConstraints"* ]]
 }
 
 @test "local cert file: installs and verifies" {

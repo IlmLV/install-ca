@@ -57,7 +57,13 @@ run_openssl x509 -req -in "$OUT/https-server.csr" \
   -CAcreateserial -out "$OUT/https-server.crt" -days 365 \
   -extfile "$HTTPS_SERVER_EXT"
 
-rm -f "$OUT/https-server.csr" "$OUT/https-ca.srl" "$OUT/https-ca.key" "$HTTPS_SERVER_EXT" "$OUT/test-ca.key"
+# ── 4. Leaf certificate (CA:FALSE) — used to verify non-CA cert rejection ──────
+run_openssl req -x509 -newkey rsa:2048 -keyout "$OUT/leaf.key" \
+  -out "$OUT/leaf.crt" -days 365 -nodes \
+  -subj "/CN=Test Leaf" \
+  -addext "basicConstraints=CA:FALSE"
+
+rm -f "$OUT/https-server.csr" "$OUT/https-ca.srl" "$OUT/https-ca.key" "$HTTPS_SERVER_EXT" "$OUT/test-ca.key" "$OUT/leaf.key"
 
 if [[ "$QUIET" != "1" ]]; then
   echo "Certificates generated in $OUT"
