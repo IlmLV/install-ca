@@ -44,10 +44,8 @@ if ($IsWindows) {
     $id        = [System.Security.Principal.WindowsIdentity]::GetCurrent()
     $principal = New-Object System.Security.Principal.WindowsPrincipal($id)
     if (-not $principal.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)) {
-        Write-Host ""
         Write-Host "ERROR: This script must be run as Administrator." -ForegroundColor Red
         Write-Host "       Right-click PowerShell and select 'Run as Administrator', then try again." -ForegroundColor Red
-        Write-Host ""
         return 1
     }
 }
