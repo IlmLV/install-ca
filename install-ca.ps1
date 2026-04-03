@@ -509,34 +509,9 @@ $shouldAutoRun = $runningFromFile -or ($args.Count -gt 0)
 
 if (-not $shouldAutoRun) {
     if (-not $invokedAsDotSource) {
-        $global:__Install_InstallCalled = $false
-        if (-not (Get-Variable '__Install_OnIdleSub' -Scope Global -ErrorAction SilentlyContinue)) {
-            $global:__Install_OnIdleSub = $null
-        }
-
-        if ($global:__Install_OnIdleSub) {
-            try { Unregister-Event -SubscriptionId $global:__Install_OnIdleSub.Id -ErrorAction SilentlyContinue } catch { }
-            try { Remove-Job -Id $global:__Install_OnIdleSub.Id -Force -ErrorAction SilentlyContinue } catch { }
-            $global:__Install_OnIdleSub = $null
-        }
-
-        $global:__Install_OnIdleSub = Register-EngineEvent -SourceIdentifier PowerShell.OnIdle -Action {
-            if (-not $global:__Install_InstallCalled) {
-                try {
-                    $code = Install
-                    if ($null -eq $code) { $code = 0 }
-                    $global:LASTEXITCODE = [int]$code
-                } catch {
-                    Write-Error $_
-                }
-            }
-
-            if ($global:__Install_OnIdleSub) {
-                try { Unregister-Event -SubscriptionId $global:__Install_OnIdleSub.Id -ErrorAction SilentlyContinue } catch { }
-                try { Remove-Job -Id $global:__Install_OnIdleSub.Id -Force -ErrorAction SilentlyContinue } catch { }
-                $global:__Install_OnIdleSub = $null
-            }
-        }
+        $exitCode = Install
+        if ($null -eq $exitCode) { $exitCode = 0 }
+        $global:LASTEXITCODE = [int]$exitCode
     }
     return
 }
