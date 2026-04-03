@@ -10,8 +10,8 @@
 #   - Firefox (deb/non-snap)      per-profile cert9.db under ~/.mozilla/firefox/
 #   - Firefox (snap)              per-profile cert9.db under ~/snap/firefox/
 #
-# Usage: bash install-ca-cert.sh [CA-URL-or-path] [--url|-u <url>] [--force|-f] [--yes|-y]
-#   or:  bash <(curl -fsSL https://raw.githubusercontent.com/IlmLV/install-ca-cert/main/install-ca-cert.sh) -u <url> -y
+# Usage: bash install-ca-cert.sh [CA-URL-or-path] [--force|-f] [--yes|-y]
+#   or:  curl -fsSL https://raw.githubusercontent.com/IlmLV/install-ca-cert/main/install-ca-cert.sh | bash -s -- <url> -y
 
 set -euo pipefail
 

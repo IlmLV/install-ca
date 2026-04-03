@@ -59,12 +59,12 @@ Modern systems maintain multiple independent certificate trust stores — one fo
 
 **Interactive** — prompts for the certificate URL or file path:
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/IlmLV/install-ca-cert/main/install-ca-cert.sh)
+curl -fsSL https://raw.githubusercontent.com/IlmLV/install-ca-cert/main/install-ca-cert.sh | bash
 ```
 
 **Non-interactive** — certificate URL and auto-approve provided upfront:
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/IlmLV/install-ca-cert/main/install-ca-cert.sh) -u https://example.com/ca.crt -y
+curl -fsSL https://raw.githubusercontent.com/IlmLV/install-ca-cert/main/install-ca-cert.sh | bash -s -- https://example.com/ca.crt -y
 ```
 
 > `sudo` is required for writing to `/usr/local/share/ca-certificates/`. The script will prompt for your password at that step.
