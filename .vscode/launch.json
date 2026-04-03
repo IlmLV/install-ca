@@ -38,8 +38,7 @@
       "name": "Debug: install-ca.sh",
       "type": "node-terminal",
       "request": "launch",
-      "script": "${workspaceFolder}/install-ca.sh",
-      "args": [],
+      "command": "bash install-ca.sh",
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "presentation": {
