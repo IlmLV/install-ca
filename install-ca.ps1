@@ -153,7 +153,7 @@ if ($CA_SOURCE -match '^https?://') {
     Write-Host "==> Fetching CA certificate from $CA_SOURCE ..."
     $downloadOk = $false
     try {
-        Invoke-WebRequest -Uri $CA_SOURCE -OutFile $CA_FILE -TimeoutSec 30
+        Invoke-CompatWebRequest -Uri $CA_SOURCE -OutFile $CA_FILE
         $downloadOk = $true
     } catch {
         Write-Host "    WARNING: Secure download failed. The server's TLS certificate may be invalid or self-signed."
