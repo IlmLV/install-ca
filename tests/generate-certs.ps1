@@ -16,10 +16,8 @@ $testCert = New-SelfSignedCertificate `
     -Subject "CN=Test CA, O=Test Org" `
     -CertStoreLocation "Cert:\CurrentUser\My" `
     -NotAfter (Get-Date).AddYears(1) `
-    -TextExtension @(
-        "2.5.29.19={critical}{text}CA=true",
-        "2.5.29.15={critical}{text}CertSign,CRLSign"
-    )
+    -KeyUsage CertSign, CRLSign `
+    -TextExtension @("2.5.29.19={critical}{text}CA=true")
 
 try {
     $certBytes = $testCert.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert)
@@ -54,26 +52,26 @@ try {
 if (Get-Command openssl -ErrorAction SilentlyContinue) {
     $ext = $null
     try {
-        & openssl req -x509 -newkey rsa:2048 -keyout "$OutputDir\https-ca.key" `
+        $out = & openssl req -x509 -newkey rsa:2048 -keyout "$OutputDir\https-ca.key" `
             -out "$OutputDir\https-ca.crt" -days 365 -nodes `
             -subj "/CN=Test HTTPS CA" `
             -addext "basicConstraints=critical,CA:TRUE,pathlen:0" `
-            -addext "keyUsage=critical,keyCertSign,cRLSign" 2>$null
-        if ($LASTEXITCODE -ne 0) { throw "openssl failed to generate https-ca.crt (exit $LASTEXITCODE)" }
+            -addext "keyUsage=critical,keyCertSign,cRLSign" 2>&1 | Out-String
+        if ($LASTEXITCODE -ne 0) { throw "openssl failed to generate https-ca.crt (exit $LASTEXITCODE)`n$out" }
 
-        & openssl req -newkey rsa:2048 -keyout "$OutputDir\https-server.key" `
+        $out = & openssl req -newkey rsa:2048 -keyout "$OutputDir\https-server.key" `
             -out "$OutputDir\https-server.csr" -nodes `
-            -subj "/CN=localhost" 2>$null
-        if ($LASTEXITCODE -ne 0) { throw "openssl failed to generate https-server.csr (exit $LASTEXITCODE)" }
+            -subj "/CN=localhost" 2>&1 | Out-String
+        if ($LASTEXITCODE -ne 0) { throw "openssl failed to generate https-server.csr (exit $LASTEXITCODE)`n$out" }
 
         $ext = [IO.Path]::GetTempFileName()
         Set-Content $ext "subjectAltName=DNS:localhost,IP:127.0.0.1`nextendedKeyUsage=serverAuth`nkeyUsage=digitalSignature,keyEncipherment`nbasicConstraints=CA:FALSE" -Encoding ASCII
 
-        & openssl x509 -req -in "$OutputDir\https-server.csr" `
+        $out = & openssl x509 -req -in "$OutputDir\https-server.csr" `
             -CA "$OutputDir\https-ca.crt" -CAkey "$OutputDir\https-ca.key" `
             -CAcreateserial -out "$OutputDir\https-server.crt" -days 365 `
-            -extfile $ext 2>$null
-        if ($LASTEXITCODE -ne 0) { throw "openssl failed to sign https-server.crt (exit $LASTEXITCODE)" }
+            -extfile $ext 2>&1 | Out-String
+        if ($LASTEXITCODE -ne 0) { throw "openssl failed to sign https-server.crt (exit $LASTEXITCODE)`n$out" }
     } finally {
         if ($ext) { Remove-Item $ext -Force -ErrorAction SilentlyContinue }
         Remove-Item "$OutputDir\https-server.csr", "$OutputDir\https-ca.key", "$OutputDir\https-ca.srl" -Force -ErrorAction SilentlyContinue
