@@ -1,4 +1,4 @@
-# Generate test certificates at runtime — no private keys stored in the repo.
+﻿# Generate test certificates at runtime — no private keys stored in the repo.
 # Usage: powershell -File generate-certs.ps1 -OutputDir <path>
 #   OutputDir defaults to $env:TEMP\test-certs-<guid>
 param(
