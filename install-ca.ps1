@@ -416,6 +416,7 @@ if ($hasEnterpriseRoots) {
             Write-Host "    Falling back to ImportEnterpriseRoots policy (makes Firefox trust the Windows store)."
 
             if (Confirm-Action "    Set ImportEnterpriseRoots policy so Firefox trusts the Windows store?") {
+                New-Item -Path $ffCertRegKey -Force | Out-Null
                 New-ItemProperty -Path $ffCertRegKey -Name 'ImportEnterpriseRoots' -Value 1 -PropertyType DWord -Force | Out-Null
                 Write-Host "    Done - Firefox will now import roots from the Windows Certificate Store."
             } else {
