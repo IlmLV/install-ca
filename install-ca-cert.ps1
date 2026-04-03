@@ -1,4 +1,4 @@
-#Requires -Version 7.0
+﻿#Requires -Version 5.1
 # Install a CA certificate into system and browser trust stores
 #
 # Browsers handled:
@@ -20,6 +20,16 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+# PowerShell 5.x compatibility — $IsWindows is not defined in Windows PowerShell 5.x
+if (-not (Get-Variable 'IsWindows' -Scope Global -ErrorAction SilentlyContinue)) {
+    $IsWindows = $true  # Windows PowerShell 5.x runs only on Windows
+}
+
+# Ensure TLS 1.2 is available (PowerShell 5.x / .NET Framework defaults to TLS 1.0)
+if ($PSVersionTable.PSVersion.Major -lt 6) {
+    [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+}
 
 # ── Elevation check ───────────────────────────────────────────────────────────
 if ($IsWindows) {
@@ -72,7 +82,18 @@ function Confirm-Action([string]$Prompt) {
 
 # Download without validating server TLS (the CA is not yet trusted)
 function Invoke-InsecureDownload([string]$Uri, [string]$OutFile) {
-    Invoke-WebRequest -Uri $Uri -OutFile $OutFile -SkipCertificateCheck -TimeoutSec 30
+    if ($PSVersionTable.PSVersion.Major -ge 6) {
+        Invoke-WebRequest -Uri $Uri -OutFile $OutFile -SkipCertificateCheck -TimeoutSec 30
+    } else {
+        # PowerShell 5.x: bypass certificate validation via ServicePointManager
+        $origCallback = [System.Net.ServicePointManager]::ServerCertificateValidationCallback
+        [System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
+        try {
+            Invoke-WebRequest -Uri $Uri -OutFile $OutFile -TimeoutSec 30
+        } finally {
+            [System.Net.ServicePointManager]::ServerCertificateValidationCallback = $origCallback
+        }
+    }
 }
 
 # Add CA to a single NSS sql: database directory using Firefox's certutil.exe

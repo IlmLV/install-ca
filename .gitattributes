@@ -1,0 +1,8 @@
+# Normalize line endings: LF in repository
+* text=auto eol=lf
+
+# Shell scripts: LF always
+*.sh text eol=lf
+
+# PowerShell scripts: CRLF on checkout, preserve UTF-8 BOM
+*.ps1 text eol=crlf working-tree-encoding=UTF-8-BOM

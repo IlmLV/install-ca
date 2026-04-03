@@ -3,7 +3,7 @@
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows-blue)](https://github.com/IlmLV/install-ca-cert)
 [![Tests](https://github.com/IlmLV/install-ca-cert/actions/workflows/test.yml/badge.svg)](https://github.com/IlmLV/install-ca-cert/actions/workflows/test.yml)
 [![Bash](https://img.shields.io/badge/bash-4.0%2B-4EAA25?logo=gnubash&logoColor=white)](install-ca-cert.sh)
-[![PowerShell](https://img.shields.io/badge/powershell-7.0%2B-5391FE?logo=powershell&logoColor=white)](install-ca-cert.ps1)
+[![PowerShell](https://img.shields.io/badge/powershell-5.1%2B-5391FE?logo=powershell&logoColor=white)](install-ca-cert.ps1)
 [![License](https://img.shields.io/github/license/IlmLV/install-ca-cert)](LICENSE)
 [![Stars](https://img.shields.io/github/stars/IlmLV/install-ca-cert?style=flat)](https://github.com/IlmLV/install-ca-cert/stargazers)
 
@@ -27,7 +27,7 @@ Modern systems maintain multiple independent certificate trust stores — one fo
 | Platform | Script | Requirements |
 | -------- | ------ | ------------ |
 | ![Linux](https://img.shields.io/badge/Debian%20%7C%20Ubuntu-FCC624?logo=linux&logoColor=black) | `install-ca-cert.sh` | `bash`, `curl`, `openssl`, `sudo`, `libnss3-tools` (auto-installed if missing) |
-| ![Windows](https://img.shields.io/badge/Windows-0078D4?logo=windows&logoColor=white) | `install-ca-cert.ps1` | PowerShell 7+, Administrator privileges |
+| ![Windows](https://img.shields.io/badge/Windows-0078D4?logo=windows&logoColor=white) | `install-ca-cert.ps1` | PowerShell 5.1+, Administrator privileges |
 
 ---
 
@@ -81,7 +81,7 @@ irm https://raw.githubusercontent.com/IlmLV/install-ca-cert/main/install-ca-cert
 iex "& {$(irm https://raw.githubusercontent.com/IlmLV/install-ca-cert/main/install-ca-cert.ps1)} -u 'https://example.com/ca.crt' -y"
 ```
 
-> Requires PowerShell 7+ and Administrator privileges.
+> Requires PowerShell 5.1+ and Administrator privileges.
 
 ---
 
@@ -157,7 +157,7 @@ bash tests/run-tests.sh linux-debian
 
 ### 🪟 Windows
 
-Requires [Pester](https://pester.dev) and PowerShell 7+.
+Requires [Pester](https://pester.dev) and PowerShell 5.1+.
 
 ```powershell
 Invoke-Pester tests/windows.ps1
