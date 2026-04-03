@@ -1,11 +1,11 @@
 # Pester tests for install-ca.ps1 on Windows runners
 #
 # Each test invokes install-ca.ps1 directly as a child PowerShell process,
-# passing -Url / -Yes / -Force as named parameters — the same pattern
+# passing -Url / -Yes / -Force as named parameters  -  the same pattern
 # used by the bash tests (e.g. "bash install-ca.sh -y $CERT").
 
 BeforeAll {
-    # Elevation check — LocalMachine\Root writes require Administrator privileges.
+    # Elevation check  -  LocalMachine\Root writes require Administrator privileges.
     $currentIdentity  = [System.Security.Principal.WindowsIdentity]::GetCurrent()
     $currentPrincipal = New-Object System.Security.Principal.WindowsPrincipal($currentIdentity)
     if (-not $currentPrincipal.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)) {
@@ -31,8 +31,8 @@ BeforeAll {
     $script:HttpsServerCrt = Join-Path $script:TmpCertDir 'https-server.crt'
     $script:HttpsServerKey = Join-Path $script:TmpCertDir 'https-server.key'
 
-    # Invoke install-ca.ps1 directly with named parameters — same pattern as bash tests.
-    # Stdin is redirected and closed immediately so any Read-Host call gets EOF → returns null,
+    # Invoke install-ca.ps1 directly with named parameters  -  same pattern as bash tests.
+    # Stdin is redirected and closed immediately so any Read-Host call gets EOF -> returns null,
     # which the script treats as "no input" and exits with error.  Both stdout and stderr are
     # read asynchronously to avoid the deadlock that sequential ReadToEnd() can cause when the
     # child process fills one pipe while we are blocked draining the other.
@@ -226,38 +226,38 @@ Describe 'install-ca.ps1 (Windows)' {
     }
 
     # TODO: add headless TLS verification tests for browsers on Windows:
-    #   - Chrome    — uses Windows cert store; should trust CA after system install
-    #   - Edge      — uses Windows cert store; should trust CA after system install
-    #   - Firefox   — uses its own NSS profile store; requires profile setup like Linux tests
-    #   - Brave     — uses Windows cert store; should trust CA after system install
-    #   - Chromium  — uses Windows cert store; should trust CA after system install
+    #   - Chrome     -  uses Windows cert store; should trust CA after system install
+    #   - Edge       -  uses Windows cert store; should trust CA after system install
+    #   - Firefox    -  uses its own NSS profile store; requires profile setup like Linux tests
+    #   - Brave      -  uses Windows cert store; should trust CA after system install
+    #   - Chromium   -  uses Windows cert store; should trust CA after system install
 
     It 'Chrome headless loads HTTPS page after trust install' {
-        # TODO: implement — Chrome uses the Windows cert store, so trust is implicit after
+        # TODO: implement  -  Chrome uses the Windows cert store, so trust is implicit after
         # system install. Spawn: chrome --headless=new --no-sandbox --dump-dom https://...
         Set-ItResult -Skipped -Because 'not yet implemented'
     }
 
     It 'Microsoft Edge headless loads HTTPS page after trust install' {
-        # TODO: implement — Edge uses the Windows cert store, so trust is implicit after
+        # TODO: implement  -  Edge uses the Windows cert store, so trust is implicit after
         # system install. Spawn: msedge --headless=new --no-sandbox --dump-dom https://...
         Set-ItResult -Skipped -Because 'not yet implemented'
     }
 
     It 'Firefox headless loads HTTPS page after trust install' {
-        # TODO: implement — Firefox uses its own NSS profile store on Windows.
+        # TODO: implement  -  Firefox uses its own NSS profile store on Windows.
         # Requires profile directory setup similar to the Linux $FIREFOX_DEB_NSS_DIR tests,
         # then: firefox --headless --no-remote --profile <dir> --screenshot ... https://...
         Set-ItResult -Skipped -Because 'not yet implemented'
     }
 
     It 'Brave headless loads HTTPS page after trust install' {
-        # TODO: implement — Brave uses the Windows cert store, so trust is implicit after
+        # TODO: implement  -  Brave uses the Windows cert store, so trust is implicit after
         # system install. Spawn: brave --headless=new --no-sandbox --dump-dom https://...
         Set-ItResult -Skipped -Because 'not yet implemented'
     }
 
-    # ── Oneliner (irm | iex) syntax ───────────────────────────────────────────────
+    # -- Oneliner (irm | iex) syntax -----------------------------------------------
     #
     # Simulates: irm <url> | iex; Install '<cert>' [-Yes] [-Force]
     # Invoke-Expression on the local script file mirrors what iex does when piped.
@@ -307,7 +307,7 @@ Describe 'install-ca.ps1 (Windows)' {
 
     It 'HTTPS URL trusts system CA after install' {
         if (-not (Test-Path $script:HttpsCaFile)) {
-            Set-ItResult -Skipped -Because 'openssl not available — HTTPS certs not generated'
+            Set-ItResult -Skipped -Because 'openssl not available  -  HTTPS certs not generated'
             return
         }
 

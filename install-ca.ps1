@@ -1,4 +1,4 @@
-﻿# Install a CA certificate into system and browser trust stores
+# Install a CA certificate into system and browser trust stores
 #
 # Browsers handled:
 #   - System trust store   (Windows Certificate Store - LocalMachine\Root)
@@ -41,7 +41,7 @@ if ($PSVersionTable.PSVersion.Major -lt 6) {
     [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 }
 
-# ── Elevation check ───────────────────────────────────────────────────────────
+# -- Elevation check -----------------------------------------------------------
 if ($IsWindows) {
     $id        = [System.Security.Principal.WindowsIdentity]::GetCurrent()
     $principal = New-Object System.Security.Principal.WindowsPrincipal($id)
@@ -56,7 +56,7 @@ $tempDir = [IO.Path]::GetTempPath()
 $caFileName = "ca_{0}.crt" -f ([guid]::NewGuid().ToString("N"))
 $CA_FILE = Join-Path $tempDir $caFileName
 
-# ── Ctrl+C handler ────────────────────────────────────────────────────────────
+# -- Ctrl+C handler ------------------------------------------------------------
 # Initialise to safe defaults so the finally block can reference these variables
 # even if console setup fails (e.g., non-interactive/headless environments).
 $originalTreatControlCAsInput = $false
@@ -75,7 +75,7 @@ try {
     # Console not available (non-interactive or redirected I/O) - skip Ctrl+C handler.
 }
 
-# ── Helpers ───────────────────────────────────────────────────────────────
+# -- Helpers ---------------------------------------------------------------
 
 function Confirm-Action([string]$Prompt) {
     if ($Yes) {
@@ -126,7 +126,7 @@ function Add-ToNssDb([string]$CertUtil, [string]$DbDir, [string]$CaName, [string
     if ($LASTEXITCODE -ne 0) { throw "certutil failed for $DbDir" }
 }
 
-# ── 1. Resolve CA source ──────────────────────────────────────────────────────
+# -- 1. Resolve CA source ------------------------------------------------------
 $cert = $null
 try {
 if (-not [string]::IsNullOrWhiteSpace($Url)) {
@@ -146,7 +146,7 @@ if ([string]::IsNullOrWhiteSpace($CA_SOURCE)) {
     return 1
 }
 
-# ── 2. Fetch or copy the CA certificate ───────────────────────────────────────
+# -- 2. Fetch or copy the CA certificate ---------------------------------------
 
 Write-Host ""
 if ($CA_SOURCE -match '^https?://') {
@@ -186,7 +186,7 @@ try {
 Write-Host "    Subject  : $($cert.Subject)"
 Write-Host "    NotAfter : $($cert.NotAfter)"
 
-# ── Verify the certificate is a CA certificate ───────────────────────────────
+# -- Verify the certificate is a CA certificate -------------------------------
 $basicConstraintsExtensionRaw = $cert.Extensions | Where-Object {
     $_.Oid.Value -eq '2.5.29.19'
 } | Select-Object -First 1
@@ -227,7 +227,7 @@ $CA_NAME = if ($cert.Subject -match 'CN=([^,]+)') { $Matches[1].Trim() } else { 
 
 Write-Host "    CA Name  : $CA_NAME"
 
-# ── Non-Windows short-circuit ────────────────────────────────────────────────
+# -- Non-Windows short-circuit ------------------------------------------------
 if (-not $IsWindows) {
     if ($env:INSTALL_CA_CERT_TEST_LINUX -eq '1') {
         $safeName = ($CA_NAME.ToLower() -replace '[^a-z0-9]+', '-').Trim('-')
@@ -252,7 +252,7 @@ if (-not $IsWindows) {
     return 0
 }
 
-# ── 3. Check existing certificate in system store ────────────────────────────
+# -- 3. Check existing certificate in system store ----------------------------
 
 Write-Host ""
 Write-Host "==> Checking for existing certificate in LocalMachine\Root ..."
@@ -304,7 +304,7 @@ if ($existing) {
     Write-Host "    Status   : No existing certificate found - fresh install."
 }
 
-# ── 4. System trust store (Windows Certificate Store) ────────────────────────
+# -- 4. System trust store (Windows Certificate Store) ------------------------
 #
 #  Adding to LocalMachine\Root covers all Chromium-based browsers on Windows
 #  (Chrome, Edge, Brave, Chromium) because they delegate to the OS store.
@@ -344,7 +344,7 @@ if (Confirm-Action "    Add '$CA_NAME' to the Windows Root CA store?") {
     Write-Host "    Skipped."
 }
 
-# ── 5. Firefox ────────────────────────────────────────────────────────────────
+# -- 5. Firefox ----------------------------------------------------------------
 #
 #  Two approaches, tried in order:
 #   a) certutil.exe (ships with most Firefox installs) - updates the NSS cert9.db directly.
@@ -425,7 +425,7 @@ if ($hasEnterpriseRoots) {
     }
 }
 
-# ── 6. Verify ─────────────────────────────────────────────────────────────────
+# -- 6. Verify -----------------------------------------------------------------
 
 Write-Host ""
 Write-Host "==> Verifying system trust ..."

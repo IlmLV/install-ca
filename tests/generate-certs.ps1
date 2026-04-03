@@ -10,7 +10,7 @@ $ErrorActionPreference = 'Stop'
 
 New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
 
-# ── Test CA (used by install-ca.ps1 tests) ────────────────────────────────────
+# -- Test CA (used by install-ca.ps1 tests) ------------------------------------
 $testCert = New-SelfSignedCertificate `
     -Type Custom `
     -Subject "CN=Test CA, O=Test Org" `
@@ -31,7 +31,7 @@ try {
     Remove-Item "Cert:\CurrentUser\My\$($testCert.Thumbprint)" -Force -ErrorAction SilentlyContinue
 }
 
-# ── Leaf certificate (no CA extensions) - used to verify non-CA cert rejection ─
+# -- Leaf certificate (no CA extensions) - used to verify non-CA cert rejection -
 $leafCert = New-SelfSignedCertificate `
     -Type Custom `
     -Subject "CN=Test Leaf" `
@@ -49,7 +49,7 @@ try {
     Remove-Item "Cert:\CurrentUser\My\$($leafCert.Thumbprint)" -Force -ErrorAction SilentlyContinue
 }
 
-# ── HTTPS test CA + server cert (requires openssl in PATH) ───────────────────
+# -- HTTPS test CA + server cert (requires openssl in PATH) -------------------
 if (Get-Command openssl -ErrorAction SilentlyContinue) {
     $ext = $null
     # In Windows PowerShell 5.1, redirecting an external command's stderr with 2>&1
