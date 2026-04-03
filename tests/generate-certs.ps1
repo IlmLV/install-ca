@@ -21,10 +21,11 @@ $testCert = New-SelfSignedCertificate `
 
 try {
     $certBytes = $testCert.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert)
-    $b64 = [Convert]::ToBase64String($certBytes, 'InsertLineBreaks')
-    Set-Content -Path (Join-Path $OutputDir 'test-ca.crt') `
-        -Value "-----BEGIN CERTIFICATE-----`n$b64`n-----END CERTIFICATE-----" `
-        -Encoding ASCII
+    # Use None to avoid InsertLineBreaks inserting \r\n; manually wrap at 64 chars with \n.
+    $b64 = [Convert]::ToBase64String($certBytes, [System.Base64FormattingOptions]::None)
+    $b64Lines = [regex]::Replace($b64, '.{1,64}', '$0' + "`n")
+    $pemContent = "-----BEGIN CERTIFICATE-----`n" + $b64Lines + "-----END CERTIFICATE-----`n"
+    [IO.File]::WriteAllText((Join-Path $OutputDir 'test-ca.crt'), $pemContent, [Text.Encoding]::ASCII)
 } finally {
     # Always remove from cert store — it was only needed for export
     Remove-Item "Cert:\CurrentUser\My\$($testCert.Thumbprint)" -Force -ErrorAction SilentlyContinue
@@ -40,10 +41,10 @@ $leafCert = New-SelfSignedCertificate `
 
 try {
     $leafBytes = $leafCert.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert)
-    $leafB64 = [Convert]::ToBase64String($leafBytes, 'InsertLineBreaks')
-    Set-Content -Path (Join-Path $OutputDir 'leaf.crt') `
-        -Value "-----BEGIN CERTIFICATE-----`n$leafB64`n-----END CERTIFICATE-----" `
-        -Encoding ASCII
+    $leafB64 = [Convert]::ToBase64String($leafBytes, [System.Base64FormattingOptions]::None)
+    $leafB64Lines = [regex]::Replace($leafB64, '.{1,64}', '$0' + "`n")
+    $leafPemContent = "-----BEGIN CERTIFICATE-----`n" + $leafB64Lines + "-----END CERTIFICATE-----`n"
+    [IO.File]::WriteAllText((Join-Path $OutputDir 'leaf.crt'), $leafPemContent, [Text.Encoding]::ASCII)
 } finally {
     Remove-Item "Cert:\CurrentUser\My\$($leafCert.Thumbprint)" -Force -ErrorAction SilentlyContinue
 }

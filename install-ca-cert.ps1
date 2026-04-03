@@ -129,16 +129,11 @@ if ($CA_SOURCE -match '^https?://') {
 }
 
 try {
-    # Detect PEM format and load appropriately to support both PEM and DER certificates
-    $fileContent = Get-Content -LiteralPath $CA_FILE -Raw
-
-    if ($fileContent -match '-----BEGIN CERTIFICATE-----') {
-        # PEM format — CreateFromPemFile is always available on .NET 5+ (PS7+)
-        $cert = [System.Security.Cryptography.X509Certificates.X509Certificate2]::CreateFromPemFile($CA_FILE)
-    } else {
-        # Non-PEM input (e.g., DER)
-        $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2 $CA_FILE
-    }
+    # X509Certificate2(string) on .NET 7+ (required by PS7+) handles both PEM and DER
+    # via the OS certificate APIs (CryptQueryObject on Windows), which are lenient about
+    # line endings and encoding variants.  This is more compatible than CreateFromPemFile
+    # whose managed PEM parser is stricter about line-ending consistency.
+    $cert = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($CA_FILE)
 } catch {
     Write-Error "File is not a valid certificate." -ErrorAction Continue
     exit 1
