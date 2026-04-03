@@ -8,7 +8,7 @@
 #   - Chromium             uses Windows Certificate Store
 #   - Firefox              cert9.db via certutil.exe, or ImportEnterpriseRoots registry policy
 #
-# Usage (file): powershell -File install-ca.ps1 [-CASource|-u <url-or-path>] [-Force|-f] [-Yes|-y]
+# Usage (file): powershell -File install-ca.ps1 [-Url|-u <url-or-path>] [-Force|-f] [-Yes|-y]
 # Usage (iex interactive):      irm https://raw.githubusercontent.com/IlmLV/install-ca/main/install-ca.ps1 | iex
 # Usage (iex non-interactive):  irm https://raw.githubusercontent.com/IlmLV/install-ca/main/install-ca.ps1 | iex; Install '<url>' -y
 
@@ -17,7 +17,7 @@ $ErrorActionPreference = "Stop"
 
 function Install {
 param(
-    [Alias('u')][string]$CASource = "",
+    [Alias('u')][string]$Url = "",
     [Alias('f')][switch]$Force,
     [Alias('y')][switch]$Yes
 )
@@ -114,8 +114,8 @@ function Add-ToNssDb([string]$CertUtil, [string]$DbDir, [string]$CaName, [string
 # ── 1. Resolve CA source ──────────────────────────────────────────────────────
 $cert = $null
 try {
-if (-not [string]::IsNullOrWhiteSpace($CASource)) {
-    $CA_SOURCE = $CASource
+if (-not [string]::IsNullOrWhiteSpace($Url)) {
+    $CA_SOURCE = $Url
 } else {
     try {
         $CA_SOURCE = Read-Host "Enter CA certificate URL or file path"
@@ -476,7 +476,7 @@ function ConvertTo-InstallArguments {
     )
 
     $result = @{
-        CASource = ""
+        Url = ""
         Force = $false
         Yes = $false
     }
@@ -484,9 +484,8 @@ function ConvertTo-InstallArguments {
     for ($i = 0; $i -lt $Arguments.Count; $i++) {
         $arg = $Arguments[$i]
         switch ($arg) {
-            '--url' { if ($i + 1 -ge $Arguments.Count) { throw "Missing value for $arg" }; $i++; $result.CASource = $Arguments[$i] }
-            '-u' { if ($i + 1 -ge $Arguments.Count) { throw "Missing value for $arg" }; $i++; $result.CASource = $Arguments[$i] }
-            '-CASource' { if ($i + 1 -ge $Arguments.Count) { throw "Missing value for $arg" }; $i++; $result.CASource = $Arguments[$i] }
+            '-Url' { if ($i + 1 -ge $Arguments.Count) { throw "Missing value for $arg" }; $i++; $result.Url = $Arguments[$i] }
+            '-u' { if ($i + 1 -ge $Arguments.Count) { throw "Missing value for $arg" }; $i++; $result.Url = $Arguments[$i] }
             '--force' { $result.Force = $true }
             '-f' { $result.Force = $true }
             '-Force' { $result.Force = $true }
@@ -494,8 +493,8 @@ function ConvertTo-InstallArguments {
             '-y' { $result.Yes = $true }
             '-Yes' { $result.Yes = $true }
             default {
-                if ([string]::IsNullOrWhiteSpace($result.CASource)) {
-                    $result.CASource = $arg
+                if ([string]::IsNullOrWhiteSpace($result.Url)) {
+                    $result.Url = $arg
                 } else {
                     throw "Unknown argument: $arg"
                 }
@@ -542,7 +541,7 @@ if (-not $shouldAutoRun) {
 }
 
 $parsed = ConvertTo-InstallArguments -Arguments $args
-$exitCode = Install -CASource $parsed.CASource -Force:$parsed.Force -Yes:$parsed.Yes
+$exitCode = Install -Url $parsed.Url -Force:$parsed.Force -Yes:$parsed.Yes
 if ($null -eq $exitCode) { $exitCode = 0 }
 
 if ($runningFromFile -and -not $invokedAsDotSource) {

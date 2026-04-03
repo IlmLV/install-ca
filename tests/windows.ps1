@@ -1,7 +1,7 @@
 # Pester tests for install-ca.ps1 on Windows runners
 #
 # Each test invokes install-ca.ps1 directly as a child PowerShell process,
-# passing -CASource / -Yes / -Force as named parameters — the same pattern
+# passing -Url / -Yes / -Force as named parameters — the same pattern
 # used by the bash tests (e.g. "bash install-ca.sh -y $CERT").
 
 BeforeAll {
@@ -54,7 +54,7 @@ BeforeAll {
 
     function global:Invoke-Script {
         param(
-            [string]$CASource = '',
+            [string]$Url = '',
             [switch]$Force,
             [switch]$Yes
         )
@@ -64,7 +64,7 @@ BeforeAll {
         $argList.Add('-NonInteractive')
         $argList.Add('-File')
         $argList.Add($ScriptPath)
-        if ($CASource) { $argList.Add('-CASource'); $argList.Add($CASource) }
+        if ($Url)      { $argList.Add('-Url'); $argList.Add($Url) }
         if ($Force)    { $argList.Add('-Force') }
         if ($Yes)      { $argList.Add('-Yes') }
 
@@ -122,7 +122,7 @@ Describe 'install-ca.ps1 (Windows)' {
     }
 
     It 'non-CA leaf cert is rejected with exit code 1' {
-        $r = Invoke-Script -CASource $script:LeafCertFile -Yes
+        $r = Invoke-Script -Url $script:LeafCertFile -Yes
         $r.ExitCode | Should -Be 1
         $r.Output   | Should -Match 'not a CA certificate|BasicConstraints'
     }
@@ -130,7 +130,7 @@ Describe 'install-ca.ps1 (Windows)' {
     It 'local cert file: installs and verifies' {
         $cert = [Security.Cryptography.X509Certificates.X509Certificate2]::new($script:CertFile)
         try {
-            $r = Invoke-Script -CASource $script:CertFile -Yes
+            $r = Invoke-Script -Url $script:CertFile -Yes
             $r.ExitCode | Should -Be 0
             $r.Output   | Should -Match 'CA Name\s+:\s+Test CA'
             $r.Output   | Should -Match 'System trust: OK'
@@ -150,7 +150,7 @@ Describe 'install-ca.ps1 (Windows)' {
         $store.Add($cert)
         $store.Close()
         try {
-            $r = Invoke-Script -CASource $script:CertFile
+            $r = Invoke-Script -Url $script:CertFile
             $r.ExitCode | Should -Be 0
             $r.Output   | Should -Match 'Already up-to-date'
         }
@@ -169,7 +169,7 @@ Describe 'install-ca.ps1 (Windows)' {
             $store.Open('ReadWrite')
             $store.Add($cert)
             $store.Close()
-            $r = Invoke-Script -CASource $script:CertFile -Yes -Force
+            $r = Invoke-Script -Url $script:CertFile -Yes -Force
             $r.ExitCode | Should -Be 0
             $r.Output   | Should -Match '-Force was specified, continuing'
             $r.Output   | Should -Match 'System trust: OK'
@@ -262,7 +262,7 @@ Describe 'install-ca.ps1 (Windows)' {
                 throw "HTTPS test server on port $port was not reachable within $([math]::Round($sw.Elapsed.TotalSeconds, 2)) seconds; aborting test before Invoke-WebRequest."
             }
 
-            $r = Invoke-Script -CASource $script:HttpsCaFile -Yes
+            $r = Invoke-Script -Url $script:HttpsCaFile -Yes
             $r.ExitCode | Should -Be 0
             $installed = $true
 
