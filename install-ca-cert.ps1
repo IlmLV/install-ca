@@ -9,13 +9,13 @@
 #   - Chromium             uses Windows Certificate Store
 #   - Firefox              cert9.db via certutil.exe, or ImportEnterpriseRoots registry policy
 #
-# Usage: pwsh -File install-ca-cert.ps1 [-CASource <url-or-path>] [-Force] [-Yes]
-#   or:  irm https://raw.githubusercontent.com/IlmLV/install-ca-cert/main/install-ca-cert.ps1 | iex
+# Usage: pwsh -File install-ca-cert.ps1 [-CASource|-u <url-or-path>] [-Force|-f] [-Yes|-y]
+#   or:  iex "& {$(irm https://raw.githubusercontent.com/IlmLV/install-ca-cert/main/install-ca-cert.ps1)} -u '<url>' -y"
 
 param(
-    [string]$CASource = "",
-    [switch]$Force,
-    [switch]$Yes
+    [Alias('u')][string]$CASource = "",
+    [Alias('f')][switch]$Force,
+    [Alias('y')][switch]$Yes
 )
 
 Set-StrictMode -Version Latest

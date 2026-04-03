@@ -61,39 +61,35 @@ A cross-platform utility for installing a custom CA certificate into the OS syst
 
 ---
 
-## Quick install (one-liner)
-
-Run directly from GitHub — no cloning required. Both scripts prompt interactively for the certificate URL or local file path.
+## Usage
 
 ### Linux
 
+**Interactive** — prompts for the certificate URL or file path:
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/IlmLV/install-ca-cert/main/install-ca-cert.sh)
 ```
 
+**Non-interactive** — certificate URL and auto-approve provided upfront:
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/IlmLV/install-ca-cert/main/install-ca-cert.sh) -u https://example.com/ca.crt -y
+```
+
+> `sudo` is required for writing to `/usr/local/share/ca-certificates/`. The script will prompt for your password at that step.
+
 ### Windows
 
+**Interactive** — prompts for the certificate URL or file path:
 ```powershell
 irm https://raw.githubusercontent.com/IlmLV/install-ca-cert/main/install-ca-cert.ps1 | iex
 ```
 
----
-
-## Usage (from a local copy)
-
-### Linux
-
-```bash
-bash install-ca-cert.sh [CA-URL-or-path] [--yes|-y] [--force|-f]
-```
-
-`sudo` access is required for writing to `/usr/local/share/ca-certificates/` and running `update-ca-certificates`. The script will prompt for your password at that step.
-
-### Windows
-
+**Non-interactive** — certificate URL and auto-approve provided upfront:
 ```powershell
-pwsh -File install-ca-cert.ps1 [-CASource <url-or-path>] [-Force] [-Yes]
+iex "& {$(irm https://raw.githubusercontent.com/IlmLV/install-ca-cert/main/install-ca-cert.ps1)} -u 'https://example.com/ca.crt' -y"
 ```
+
+> Requires PowerShell 7+ and Administrator privileges.
 
 ---
 

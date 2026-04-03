@@ -10,8 +10,8 @@
 #   - Firefox (deb/non-snap)      per-profile cert9.db under ~/.mozilla/firefox/
 #   - Firefox (snap)              per-profile cert9.db under ~/snap/firefox/
 #
-# Usage: bash install-ca-cert.sh [CA-URL-or-path] [--force|-f] [--yes|-y]
-#   or:  bash <(curl -fsSL https://raw.githubusercontent.com/IlmLV/install-ca-cert/main/install-ca-cert.sh)
+# Usage: bash install-ca-cert.sh [CA-URL-or-path] [--url|-u <url>] [--force|-f] [--yes|-y]
+#   or:  bash <(curl -fsSL https://raw.githubusercontent.com/IlmLV/install-ca-cert/main/install-ca-cert.sh) -u <url> -y
 
 set -euo pipefail
 
@@ -20,20 +20,30 @@ FORCE=false
 YES=false
 CA_SOURCE_ARG=""
 
-for arg in "$@"; do
+i=1
+while [[ $i -le $# ]]; do
+  arg="${!i}"
   case "$arg" in
     --force|-f) FORCE=true ;;
     --yes|-y)   YES=true ;;
+    --url|-u)
+      i=$((i + 1))
+      if [[ $i -gt $# ]]; then
+        echo "ERROR: ${arg} requires a value" >&2; exit 1
+      fi
+      CA_SOURCE_ARG="${!i}"
+      ;;
     --*|-*) echo "ERROR: Unknown option: $arg" >&2; exit 1 ;;
     *)
       if [[ -n "$CA_SOURCE_ARG" ]]; then
         echo "ERROR: Multiple positional arguments provided: '$CA_SOURCE_ARG' and '$arg'" >&2
-        echo "Usage: bash install-ca-cert.sh [CA-URL-or-path] [--force|-f] [--yes|-y]" >&2
+        echo "Usage: bash install-ca-cert.sh [CA-URL-or-path] [--url|-u <url>] [--force|-f] [--yes|-y]" >&2
         exit 1
       fi
       CA_SOURCE_ARG="$arg"
       ;;
   esac
+  i=$((i + 1))
 done
 
 WORK_DIR="$(mktemp -d)"
