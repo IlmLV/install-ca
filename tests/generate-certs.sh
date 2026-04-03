@@ -23,7 +23,7 @@ run_openssl() {
   openssl "$@"
 }
 
-# ── 1. Test CA (used by install-ca-cert.sh / install-ca-cert.ps1 tests) ───────
+# ── 1. Test CA (used by install-ca.sh / install-ca.ps1 tests) ─────────────────
 run_openssl req -x509 -newkey rsa:2048 -keyout "$OUT/test-ca.key" \
   -out "$OUT/test-ca.crt" -days 365 -nodes \
   -subj "/CN=Test CA/O=Test Org" \

@@ -24,7 +24,7 @@ FAIL=()
 
 run_suite() {
   local name="$1"
-  local tag="install-ca-cert-test-$name"
+  local tag="install-ca-test-$name"
   local dockerfile=""
 
   case "$name" in

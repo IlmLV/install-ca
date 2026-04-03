@@ -8,9 +8,9 @@
 #   - Chromium             uses Windows Certificate Store
 #   - Firefox              cert9.db via certutil.exe, or ImportEnterpriseRoots registry policy
 #
-# Usage (file): powershell -File install-ca-cert.ps1 [-CASource|-u <url-or-path>] [-Force|-f] [-Yes|-y]
-# Usage (iex interactive):      irm https://raw.githubusercontent.com/IlmLV/install-ca-cert/main/install-ca-cert.ps1 | iex
-# Usage (iex non-interactive):  irm https://raw.githubusercontent.com/IlmLV/install-ca-cert/main/install-ca-cert.ps1 | iex; Install '<url>' -y
+# Usage (file): powershell -File install-ca.ps1 [-CASource|-u <url-or-path>] [-Force|-f] [-Yes|-y]
+# Usage (iex interactive):      irm https://raw.githubusercontent.com/IlmLV/install-ca/main/install-ca.ps1 | iex
+# Usage (iex non-interactive):  irm https://raw.githubusercontent.com/IlmLV/install-ca/main/install-ca.ps1 | iex; Install '<url>' -y
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
@@ -57,7 +57,7 @@ $CA_FILE = Join-Path $tempDir $caFileName
 # Initialise to safe defaults so the finally block can reference these variables
 # even if console setup fails (e.g., non-interactive/headless environments).
 $originalTreatControlCAsInput = $false
-$cancelKeyPressSourceId       = "install-ca-cert-cancelkeypress-$([guid]::NewGuid().ToString('N'))"
+$cancelKeyPressSourceId       = "install-ca-cancelkeypress-$([guid]::NewGuid().ToString('N'))"
 $cancelKeyPressSubscription   = $null
 try {
     $originalTreatControlCAsInput = [Console]::TreatControlCAsInput

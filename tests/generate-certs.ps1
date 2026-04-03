@@ -10,7 +10,7 @@ $ErrorActionPreference = 'Stop'
 
 New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
 
-# ── Test CA (used by install-ca-cert.ps1 tests) ───────────────────────────────
+# ── Test CA (used by install-ca.ps1 tests) ────────────────────────────────────
 $testCert = New-SelfSignedCertificate `
     -Type Custom `
     -Subject "CN=Test CA, O=Test Org" `

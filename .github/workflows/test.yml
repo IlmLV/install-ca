@@ -19,10 +19,10 @@ jobs:
         include:
           - distro: ubuntu
             dockerfile: tests/Dockerfile.ubuntu
-            tag: install-ca-cert-bats-ubuntu:ci
+            tag: install-ca-bats-ubuntu:ci
           - distro: debian
             dockerfile: tests/Dockerfile.debian
-            tag: install-ca-cert-bats-debian:ci
+            tag: install-ca-bats-debian:ci
 
     steps:
       - name: Checkout

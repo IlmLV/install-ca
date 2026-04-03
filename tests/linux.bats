@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
-# Tests for install-ca-cert.sh
+# Tests for install-ca.sh
 
-SCRIPT="/workspace/install-ca-cert.sh"
+SCRIPT="/workspace/install-ca.sh"
 CERT="${TEST_CERT:-/workspace/tests/runtime-certs/test-ca.crt}"
 HTTPS_CA="${HTTPS_CA:-/workspace/tests/runtime-certs/https-ca.crt}"
 SYSTEM_CA_DIR="/usr/local/share/ca-certificates"

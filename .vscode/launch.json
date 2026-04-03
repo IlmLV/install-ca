@@ -35,10 +35,10 @@
       }
     },
     {
-      "name": "Debug: install-ca-cert.sh",
+      "name": "Debug: install-ca.sh",
       "type": "node-terminal",
       "request": "launch",
-      "script": "${workspaceFolder}/install-ca-cert.sh",
+      "script": "${workspaceFolder}/install-ca.sh",
       "args": [],
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
@@ -59,10 +59,10 @@
       }
     },
     {
-      "name": "Debug: install-ca-cert.ps1",
+      "name": "Debug: install-ca.ps1",
       "type": "PowerShell",
       "request": "launch",
-      "script": "${workspaceFolder}/install-ca-cert.ps1",
+      "script": "${workspaceFolder}/install-ca.ps1",
       "args": [],
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",

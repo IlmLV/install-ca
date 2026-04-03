@@ -1,8 +1,8 @@
-# Pester tests for install-ca-cert.ps1 on Windows runners
+# Pester tests for install-ca.ps1 on Windows runners
 #
-# Each test invokes install-ca-cert.ps1 directly as a child PowerShell process,
+# Each test invokes install-ca.ps1 directly as a child PowerShell process,
 # passing -CASource / -Yes / -Force as named parameters — the same pattern
-# used by the bash tests (e.g. "bash install-ca-cert.sh -y $CERT").
+# used by the bash tests (e.g. "bash install-ca.sh -y $CERT").
 
 BeforeAll {
     # Elevation check — LocalMachine\Root writes require Administrator privileges.
@@ -13,7 +13,7 @@ BeforeAll {
     }
 
     $RepoRoot   = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-    $ScriptPath = Join-Path $RepoRoot 'install-ca-cert.ps1'
+    $ScriptPath = Join-Path $RepoRoot 'install-ca.ps1'
     $script:PowerShellExe = (Get-Process -Id $PID).Path
     if (-not $script:PowerShellExe) {
         $script:PowerShellExe = if ($PSVersionTable.PSEdition -eq 'Core') { 'pwsh' } else { 'powershell' }
@@ -31,7 +31,7 @@ BeforeAll {
     $script:HttpsServerCrt = Join-Path $script:TmpCertDir 'https-server.crt'
     $script:HttpsServerKey = Join-Path $script:TmpCertDir 'https-server.key'
 
-    # Invoke install-ca-cert.ps1 directly with named parameters — same pattern as bash tests.
+    # Invoke install-ca.ps1 directly with named parameters — same pattern as bash tests.
     # Stdin is redirected and closed immediately so any Read-Host call gets EOF → returns null,
     # which the script treats as "no input" and exits with error.  Both stdout and stderr are
     # read asynchronously to avoid the deadlock that sequential ReadToEnd() can cause when the
@@ -113,7 +113,7 @@ AfterAll {
     }
 }
 
-Describe 'install-ca-cert.ps1 (Windows)' {
+Describe 'install-ca.ps1 (Windows)' {
 
     It 'empty input exits with error' {
         $r = Invoke-Script

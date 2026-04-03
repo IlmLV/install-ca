@@ -1,13 +1,13 @@
-﻿# install-ca-cert
+﻿# install-ca
 
-[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows-blue)](https://github.com/IlmLV/install-ca-cert)
-[![Tests](https://github.com/IlmLV/install-ca-cert/actions/workflows/test.yml/badge.svg)](https://github.com/IlmLV/install-ca-cert/actions/workflows/test.yml)
-[![Bash](https://img.shields.io/badge/bash-4.0%2B-4EAA25?logo=gnubash&logoColor=white)](install-ca-cert.sh)
-[![PowerShell](https://img.shields.io/badge/powershell-5.1%2B-5391FE?logo=powershell&logoColor=white)](install-ca-cert.ps1)
-[![License](https://img.shields.io/github/license/IlmLV/install-ca-cert)](LICENSE)
-[![Stars](https://img.shields.io/github/stars/IlmLV/install-ca-cert?style=flat)](https://github.com/IlmLV/install-ca-cert/stargazers)
+[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows-blue)](https://github.com/IlmLV/install-ca)
+[![Tests](https://github.com/IlmLV/install-ca/actions/workflows/test.yml/badge.svg)](https://github.com/IlmLV/install-ca/actions/workflows/test.yml)
+[![Bash](https://img.shields.io/badge/bash-4.0%2B-4EAA25?logo=gnubash&logoColor=white)](install-ca.sh)
+[![PowerShell](https://img.shields.io/badge/powershell-5.1%2B-5391FE?logo=powershell&logoColor=white)](install-ca.ps1)
+[![License](https://img.shields.io/github/license/IlmLV/install-ca)](LICENSE)
+[![Stars](https://img.shields.io/github/stars/IlmLV/install-ca?style=flat)](https://github.com/IlmLV/install-ca/stargazers)
 
-Modern systems maintain multiple independent certificate trust stores — one for the OS, and separate ones for each browser. **install-ca-cert** handles all of them in a single run on Linux (Debian/Ubuntu) and Windows, so a custom CA is trusted everywhere without manual per-store setup.
+Modern systems maintain multiple independent certificate trust stores — one for the OS, and separate ones for each browser. **install-ca** handles all of them in a single run on Linux (Debian/Ubuntu) and Windows, so a custom CA is trusted everywhere without manual per-store setup.
 
 ---
 
@@ -26,8 +26,8 @@ Modern systems maintain multiple independent certificate trust stores — one fo
 
 | Platform | Script | Requirements |
 | -------- | ------ | ------------ |
-| ![Linux](https://img.shields.io/badge/Debian%20%7C%20Ubuntu-FCC624?logo=linux&logoColor=black) | `install-ca-cert.sh` | `bash`, `curl`, `openssl`, `sudo`, `libnss3-tools` (auto-installed if missing) |
-| ![Windows](https://img.shields.io/badge/Windows-0078D4?logo=windows&logoColor=white) | `install-ca-cert.ps1` | PowerShell 5.1+, Administrator privileges |
+| ![Linux](https://img.shields.io/badge/Debian%20%7C%20Ubuntu-FCC624?logo=linux&logoColor=black) | `install-ca.sh` | `bash`, `curl`, `openssl`, `sudo`, `libnss3-tools` (auto-installed if missing) |
+| ![Windows](https://img.shields.io/badge/Windows-0078D4?logo=windows&logoColor=white) | `install-ca.ps1` | PowerShell 5.1+, Administrator privileges |
 
 ---
 
@@ -59,12 +59,12 @@ Modern systems maintain multiple independent certificate trust stores — one fo
 
 **Interactive** — prompts for the certificate URL or file path:
 ```bash
-curl -fsSL https://raw.githubusercontent.com/IlmLV/install-ca-cert/main/install-ca-cert.sh | bash
+curl -fsSL https://raw.githubusercontent.com/IlmLV/install-ca/main/install-ca.sh | bash
 ```
 
 **Non-interactive** — certificate URL and auto-approve provided upfront:
 ```bash
-curl -fsSL https://raw.githubusercontent.com/IlmLV/install-ca-cert/main/install-ca-cert.sh | bash -s -- https://example.com/ca.crt -y
+curl -fsSL https://raw.githubusercontent.com/IlmLV/install-ca/main/install-ca.sh | bash -s -- https://example.com/ca.crt -y
 ```
 
 > `sudo` is required for writing to `/usr/local/share/ca-certificates/`. The script will prompt for your password at that step.
@@ -73,12 +73,12 @@ curl -fsSL https://raw.githubusercontent.com/IlmLV/install-ca-cert/main/install-
 
 **Interactive** — prompts for the certificate URL or file path:
 ```powershell
-irm https://raw.githubusercontent.com/IlmLV/install-ca-cert/main/install-ca-cert.ps1 | iex
+irm https://raw.githubusercontent.com/IlmLV/install-ca/main/install-ca.ps1 | iex
 ```
 
 **Non-interactive** — certificate URL and auto-approve provided upfront:
 ```powershell
-irm https://raw.githubusercontent.com/IlmLV/install-ca-cert/main/install-ca-cert.ps1 | iex; Install 'https://example.com/ca.crt' -y
+irm https://raw.githubusercontent.com/IlmLV/install-ca/main/install-ca.ps1 | iex; Install 'https://example.com/ca.crt' -y
 ```
 
 > Requires PowerShell 5.1+ and Administrator privileges.
@@ -123,13 +123,13 @@ Firefox maintains its own NSS databases independent of the OS store. All profile
 ## Files
 
 ```
-install-ca-cert/
-├── install-ca-cert.sh          # Bash script for Linux
-├── install-ca-cert.ps1         # PowerShell script for Windows
+install-ca/
+├── install-ca.sh               # Bash script for Linux
+├── install-ca.ps1              # PowerShell script for Windows
 └── tests/
     ├── run-tests.sh            # Runs Docker-containerized test suites
-    ├── linux.bats              # Bats test suite for install-ca-cert.sh
-    ├── windows.ps1             # Pester test suite for install-ca-cert.ps1
+    ├── linux.bats              # Bats test suite for install-ca.sh
+    ├── windows.ps1             # Pester test suite for install-ca.ps1
     ├── Dockerfile.debian       # Debian test container image
     ├── Dockerfile.ubuntu       # Ubuntu test container image
     ├── docker-linux-setup.sh   # Installs browsers and tooling inside the test container
