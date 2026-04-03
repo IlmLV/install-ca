@@ -32,6 +32,24 @@ try {
     Remove-Item "Cert:\CurrentUser\My\$($testCert.Thumbprint)" -Force -ErrorAction SilentlyContinue
 }
 
+# ── Leaf certificate (no CA extensions) — used to verify non-CA cert rejection ─
+$leafCert = New-SelfSignedCertificate `
+    -Type Custom `
+    -Subject "CN=Test Leaf" `
+    -CertStoreLocation "Cert:\CurrentUser\My" `
+    -NotAfter (Get-Date).AddYears(1) `
+    -TextExtension @("2.5.29.19={text}CA=false")
+
+try {
+    $leafBytes = $leafCert.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert)
+    $leafB64 = [Convert]::ToBase64String($leafBytes, 'InsertLineBreaks')
+    Set-Content -Path (Join-Path $OutputDir 'leaf.crt') `
+        -Value "-----BEGIN CERTIFICATE-----`n$leafB64`n-----END CERTIFICATE-----" `
+        -Encoding ASCII
+} finally {
+    Remove-Item "Cert:\CurrentUser\My\$($leafCert.Thumbprint)" -Force -ErrorAction SilentlyContinue
+}
+
 # ── HTTPS test CA + server cert (requires openssl in PATH) ───────────────────
 if (Get-Command openssl -ErrorAction SilentlyContinue) {
     $ext = $null

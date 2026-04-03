@@ -27,7 +27,7 @@ A cross-platform utility for installing a custom CA certificate into the OS syst
 | Platform              | Script                | Requirements                                                                   |
 | --------------------- | --------------------- | ------------------------------------------------------------------------------ |
 | Linux (Debian/Ubuntu) | `install-ca-cert.sh`  | `bash`, `curl`, `openssl`, `sudo`, `libnss3-tools` (auto-installed if missing) |
-| Windows               | `install-ca-cert.ps1` | PowerShell 7+, Administrator privileges, Firefox install (for Firefox step)    |
+| Windows               | `install-ca-cert.ps1` | PowerShell 7+, Administrator privileges                                        |
 
 ---
 

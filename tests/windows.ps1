@@ -21,8 +21,9 @@ BeforeAll {
     # Generate test certificates via the dedicated script (cert gen is not inline here)
     $script:TmpCertDir = Join-Path ([IO.Path]::GetTempPath()) "test-certs-$([guid]::NewGuid().ToString('N'))"
     & (Join-Path $PSScriptRoot 'generate-certs.ps1') -OutputDir $script:TmpCertDir
-    $script:CertFile      = Join-Path $script:TmpCertDir 'test-ca.crt'
-    $script:HttpsCaFile   = Join-Path $script:TmpCertDir 'https-ca.crt'
+    $script:CertFile       = Join-Path $script:TmpCertDir 'test-ca.crt'
+    $script:LeafCertFile   = Join-Path $script:TmpCertDir 'leaf.crt'
+    $script:HttpsCaFile    = Join-Path $script:TmpCertDir 'https-ca.crt'
     $script:HttpsServerCrt = Join-Path $script:TmpCertDir 'https-server.crt'
     $script:HttpsServerKey = Join-Path $script:TmpCertDir 'https-server.key'
 
@@ -98,6 +99,12 @@ Describe 'install-ca-cert.ps1 (Windows)' {
         $r = Invoke-Script
         $r.ExitCode | Should -Be 1
         $r.Output   | Should -Match 'No CA source provided'
+    }
+
+    It 'non-CA leaf cert is rejected with exit code 1' {
+        $r = Invoke-Script -CASource $script:LeafCertFile -Yes
+        $r.ExitCode | Should -Be 1
+        $r.Output   | Should -Match 'not a CA certificate|BasicConstraints'
     }
 
     It 'local cert file: installs and verifies' {

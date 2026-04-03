@@ -26,7 +26,6 @@ download_and_verify_gpg_key() {
 
   local tmp
   tmp="$(mktemp)"
-  trap 'rm -f "$tmp"' RETURN
 
   curl -fsSL "$url" -o "$tmp"
 
@@ -36,6 +35,7 @@ download_and_verify_gpg_key() {
 
   if [ -z "$actual_fpr" ]; then
     echo "ERROR: Unable to extract fingerprint from key downloaded from $url" >&2
+    rm -f "$tmp"
     exit 1
   fi
 
@@ -43,11 +43,13 @@ download_and_verify_gpg_key() {
     echo "ERROR: Fingerprint mismatch for key from $url" >&2
     echo "       Expected: $expected_fpr" >&2
     echo "       Actual:   $actual_fpr" >&2
+    rm -f "$tmp"
     exit 1
   fi
 
   # Convert to a keyring suitable for APT
   gpg --dearmor -o "$target" "$tmp"
+  rm -f "$tmp"
 }
 
 # Install Google Chrome (deb)

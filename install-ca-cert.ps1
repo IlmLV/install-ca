@@ -39,11 +39,12 @@ $CA_FILE = Join-Path $tempDir $caFileName
 # Initialise to safe defaults so the finally block can reference these variables
 # even if console setup fails (e.g., non-interactive/headless environments).
 $originalTreatControlCAsInput = $false
+$cancelKeyPressSourceId       = "install-ca-cert-cancelkeypress-$([guid]::NewGuid().ToString('N'))"
 $cancelKeyPressSubscription   = $null
 try {
     $originalTreatControlCAsInput = [Console]::TreatControlCAsInput
     [Console]::TreatControlCAsInput = $false
-    $cancelKeyPressSubscription = Register-ObjectEvent -InputObject ([Console]) -EventName CancelKeyPress -Action {
+    $cancelKeyPressSubscription = Register-ObjectEvent -InputObject ([Console]) -EventName CancelKeyPress -SourceIdentifier $cancelKeyPressSourceId -Action {
         Write-Host ""
         Write-Host "Interrupted — exiting."
         Remove-Item -LiteralPath $Event.MessageData -Force -ErrorAction SilentlyContinue
@@ -328,55 +329,65 @@ if ($hasEnterpriseRoots) {
     Write-Host "    ImportEnterpriseRoots policy is set — Firefox trusts the Windows store."
     Write-Host "    No additional action needed."
 } else {
-    # Try certutil first
-    $certutil = $null
-    $ffInstallPaths = @(
-        "$env:ProgramFiles\Mozilla Firefox\certutil.exe",
-        "${env:ProgramFiles(x86)}\Mozilla Firefox\certutil.exe"
-    )
-    foreach ($p in $ffInstallPaths) {
-        if (Test-Path $p) { $certutil = $p; break }
-    }
+    # Only proceed with Firefox-specific steps if Firefox is actually installed.
+    $ffExe = @(
+        "$env:ProgramFiles\Mozilla Firefox\firefox.exe",
+        "${env:ProgramFiles(x86)}\Mozilla Firefox\firefox.exe"
+    ) | Where-Object { Test-Path $_ } | Select-Object -First 1
 
-    if ($certutil) {
-        Write-Host "    Using certutil: $certutil"
-
-        $ffDirs = @()
-        $ffProfileRoot = "$env:APPDATA\Mozilla\Firefox\Profiles"
-        if (Test-Path $ffProfileRoot) {
-            $ffDirs = @(Get-ChildItem -Path $ffProfileRoot -Filter "cert9.db" -Recurse -ErrorAction SilentlyContinue |
-                       Select-Object -ExpandProperty DirectoryName |
-                       Sort-Object -Unique)
+    if (-not $ffExe) {
+        Write-Host "    Firefox is not installed — skipping."
+    } else {
+        # Try certutil first
+        $certutil = $null
+        $ffInstallPaths = @(
+            "$env:ProgramFiles\Mozilla Firefox\certutil.exe",
+            "${env:ProgramFiles(x86)}\Mozilla Firefox\certutil.exe"
+        )
+        foreach ($p in $ffInstallPaths) {
+            if (Test-Path $p) { $certutil = $p; break }
         }
 
-        if ($ffDirs.Count -eq 0) {
-            Write-Host "    No Firefox profiles found — skipping."
-        } else {
-            Write-Host "    Found profiles:"
-            $ffDirs | ForEach-Object { Write-Host "      $_" }
+        if ($certutil) {
+            Write-Host "    Using certutil: $certutil"
 
-            if (Confirm-Action "    Add '$CA_NAME' to the above Firefox profiles?") {
-                foreach ($db in $ffDirs) {
-                    Add-ToNssDb -CertUtil $certutil -DbDir $db -CaName $CA_NAME -CaFile $CA_FILE
-                    Write-Host "    OK: $db"
+            $ffDirs = @()
+            $ffProfileRoot = "$env:APPDATA\Mozilla\Firefox\Profiles"
+            if (Test-Path $ffProfileRoot) {
+                $ffDirs = @(Get-ChildItem -Path $ffProfileRoot -Filter "cert9.db" -Recurse -ErrorAction SilentlyContinue |
+                           Select-Object -ExpandProperty DirectoryName |
+                           Sort-Object -Unique)
+            }
+
+            if ($ffDirs.Count -eq 0) {
+                Write-Host "    No Firefox profiles found — skipping."
+            } else {
+                Write-Host "    Found profiles:"
+                $ffDirs | ForEach-Object { Write-Host "      $_" }
+
+                if (Confirm-Action "    Add '$CA_NAME' to the above Firefox profiles?") {
+                    foreach ($db in $ffDirs) {
+                        Add-ToNssDb -CertUtil $certutil -DbDir $db -CaName $CA_NAME -CaFile $CA_FILE
+                        Write-Host "    OK: $db"
+                    }
+                } else {
+                    Write-Host "    Skipped."
                 }
+            }
+        } else {
+            # certutil not available — fall back to the enterprise-roots registry policy
+            Write-Host "    certutil.exe not found in Firefox install directories."
+            Write-Host "    Falling back to ImportEnterpriseRoots policy (makes Firefox trust the Windows store)."
+
+            if (Confirm-Action "    Set ImportEnterpriseRoots policy so Firefox trusts the Windows store?") {
+                if (-not (Test-Path $ffCertRegKey)) {
+                    New-Item -Path $ffCertRegKey -Force | Out-Null
+                }
+                Set-ItemProperty -Path $ffCertRegKey -Name 'ImportEnterpriseRoots' -Value 1 -Type DWord
+                Write-Host "    Done — Firefox will now import roots from the Windows Certificate Store."
             } else {
                 Write-Host "    Skipped."
             }
-        }
-    } else {
-        # certutil not available — fall back to the enterprise-roots registry policy
-        Write-Host "    certutil.exe not found in Firefox install directories."
-        Write-Host "    Falling back to ImportEnterpriseRoots policy (makes Firefox trust the Windows store)."
-
-        if (Confirm-Action "    Set ImportEnterpriseRoots policy so Firefox trusts the Windows store?") {
-            if (-not (Test-Path $ffCertRegKey)) {
-                New-Item -Path $ffCertRegKey -Force | Out-Null
-            }
-            Set-ItemProperty -Path $ffCertRegKey -Name 'ImportEnterpriseRoots' -Value 1 -Type DWord
-            Write-Host "    Done — Firefox will now import roots from the Windows Certificate Store."
-        } else {
-            Write-Host "    Skipped."
         }
     }
 }
@@ -415,7 +426,7 @@ Write-Host "==> All done. Fully quit and restart any open browsers for changes t
 
     if ($null -ne $cancelKeyPressSubscription) {
         try {
-            Unregister-Event -SourceIdentifier $cancelKeyPressSubscription.Name -ErrorAction SilentlyContinue
+            Unregister-Event -SourceIdentifier $cancelKeyPressSourceId -ErrorAction SilentlyContinue
         } catch {
             # Ignore failures unregistering event
         }
