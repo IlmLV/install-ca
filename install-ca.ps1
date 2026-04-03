@@ -23,6 +23,8 @@ param(
     [Alias('y')][switch]$Yes
 )
 
+$global:__Install_InstallCalled = $true
+
 
 if ($PSVersionTable.PSVersion -lt [version]"5.1") {
     Write-Error "PowerShell 5.1+ is required." -ErrorAction Continue
@@ -507,9 +509,30 @@ $shouldAutoRun = $runningFromFile -or ($args.Count -gt 0)
 
 if (-not $shouldAutoRun) {
     if (-not $invokedAsDotSource) {
-        $exitCode = Install
-        if ($null -eq $exitCode) { $exitCode = 0 }
-        $global:LASTEXITCODE = [int]$exitCode
+        $global:__Install_InstallCalled = $false
+        $global:__Install_SavedPrompt = $(
+            $__p = Get-Item function:prompt -ErrorAction SilentlyContinue
+            if ($__p) { $__p.ScriptBlock } else { $null }
+        )
+
+        function global:prompt {
+            $saved = $global:__Install_SavedPrompt
+            $global:__Install_SavedPrompt = $null
+            if ($saved) { Set-Item function:global:prompt $saved }
+            else { Remove-Item function:global:prompt -ErrorAction SilentlyContinue }
+
+            if (-not $global:__Install_InstallCalled) {
+                try {
+                    $code = Install
+                    if ($null -eq $code) { $code = 0 }
+                    $global:LASTEXITCODE = [int]$code
+                } catch {
+                    Write-Host "ERROR: $_" -ForegroundColor Red
+                }
+            }
+
+            if ($saved) { & $saved } else { "PS $($ExecutionContext.SessionState.Path.CurrentLocation)$('>' * ($nestedPromptLevel + 1)) " }
+        }
     }
     return
 }
