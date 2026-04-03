@@ -1,0 +1,75 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Test: Linux All",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "bash tests/run-tests.sh",
+      "cwd": "${workspaceFolder}",
+      "presentation": {
+        "group": "linux",
+        "order": 1
+      }
+    },
+    {
+      "name": "Test: Linux Ubuntu",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "bash tests/run-tests.sh linux-ubuntu",
+      "cwd": "${workspaceFolder}",
+      "presentation": {
+        "group": "linux",
+        "order": 2
+      }
+    },
+    {
+      "name": "Test: Linux Debian",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "bash tests/run-tests.sh linux-debian",
+      "cwd": "${workspaceFolder}",
+      "presentation": {
+        "group": "linux",
+        "order": 3
+      }
+    },
+    {
+      "name": "Debug: install-ca-cert.sh",
+      "type": "node-terminal",
+      "request": "launch",
+      "script": "${workspaceFolder}/install-ca-cert.sh",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "presentation": {
+        "group": "linux",
+        "order": 4
+      }
+    },
+    {
+      "name": "Test: Windows",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"Invoke-Pester '${workspaceFolder}/tests/windows.ps1' -Output Detailed\"",
+      "cwd": "${workspaceFolder}",
+      "presentation": {
+        "group": "windows",
+        "order": 1
+      }
+    },
+    {
+      "name": "Debug: install-ca-cert.ps1",
+      "type": "PowerShell",
+      "request": "launch",
+      "script": "${workspaceFolder}/install-ca-cert.ps1",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "presentation": {
+        "group": "---",
+        "order": 2
+      }
+    }
+  ]
+}
