@@ -8,9 +8,10 @@
 #   - Chromium             uses Windows Certificate Store
 #   - Firefox              cert9.db via certutil.exe, or ImportEnterpriseRoots registry policy
 #
-# Usage (file): powershell -File install-ca.ps1 [-Url|-u <url-or-path>] [-Force|-f] [-Yes|-y]
-# Usage (iex interactive):      irm https://raw.githubusercontent.com/IlmLV/install-ca/main/install-ca.ps1 | iex
-# Usage (iex non-interactive):  irm https://raw.githubusercontent.com/IlmLV/install-ca/main/install-ca.ps1 | iex; Install '<url>' -y
+# Usage (file):                 powershell -File install-ca.ps1 [-Url|-u <url-or-path>] [-Force|-f] [-Yes|-y]
+# Usage (iex):                  irm https://raw.githubusercontent.com/IlmLV/install-ca/main/install-ca.ps1 | iex
+# Usage (iex non-interactive):  irm https://raw.githubusercontent.com/IlmLV/install-ca/main/install-ca.ps1 | iex; Install '<url>' -Yes
+# Usage (iex define-only):      . { irm https://raw.githubusercontent.com/IlmLV/install-ca/main/install-ca.ps1 | iex }; Install '<url>' -Force
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
@@ -22,7 +23,6 @@ param(
     [Alias('y')][switch]$Yes
 )
 
-$global:__Install_InstallCalled = $true
 
 if ($PSVersionTable.PSVersion -lt [version]"5.1") {
     Write-Error "PowerShell 5.1+ is required." -ErrorAction Continue
@@ -507,34 +507,9 @@ $shouldAutoRun = $runningFromFile -or ($args.Count -gt 0)
 
 if (-not $shouldAutoRun) {
     if (-not $invokedAsDotSource) {
-        $global:__Install_InstallCalled = $false
-        if (-not (Get-Variable '__Install_OnIdleSub' -Scope Global -ErrorAction SilentlyContinue)) {
-            $global:__Install_OnIdleSub = $null
-        }
-
-        if ($global:__Install_OnIdleSub) {
-            try { Unregister-Event -SubscriptionId $global:__Install_OnIdleSub.Id -ErrorAction SilentlyContinue } catch { }
-            try { Remove-Job -Id $global:__Install_OnIdleSub.Id -Force -ErrorAction SilentlyContinue } catch { }
-            $global:__Install_OnIdleSub = $null
-        }
-
-        $global:__Install_OnIdleSub = Register-EngineEvent -SourceIdentifier PowerShell.OnIdle -Action {
-            if (-not $global:__Install_InstallCalled) {
-                try {
-                    $code = Install
-                    if ($null -eq $code) { $code = 0 }
-                    $global:LASTEXITCODE = [int]$code
-                } catch {
-                    Write-Error $_
-                }
-            }
-
-            if ($global:__Install_OnIdleSub) {
-                try { Unregister-Event -SubscriptionId $global:__Install_OnIdleSub.Id -ErrorAction SilentlyContinue } catch { }
-                try { Remove-Job -Id $global:__Install_OnIdleSub.Id -Force -ErrorAction SilentlyContinue } catch { }
-                $global:__Install_OnIdleSub = $null
-            }
-        }
+        $exitCode = Install
+        if ($null -eq $exitCode) { $exitCode = 0 }
+        $global:LASTEXITCODE = [int]$exitCode
     }
     return
 }
