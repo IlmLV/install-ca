@@ -479,6 +479,7 @@ function ConvertTo-InstallArguments {
         $arg = $Arguments[$i]
         switch ($arg) {
             '-Url' { if ($i + 1 -ge $Arguments.Count) { throw "Missing value for $arg" }; $i++; $result.Url = $Arguments[$i] }
+            '--url' { if ($i + 1 -ge $Arguments.Count) { throw "Missing value for $arg" }; $i++; $result.Url = $Arguments[$i] }
             '-u' { if ($i + 1 -ge $Arguments.Count) { throw "Missing value for $arg" }; $i++; $result.Url = $Arguments[$i] }
             '--force' { $result.Force = $true }
             '-f' { $result.Force = $true }
