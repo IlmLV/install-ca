@@ -158,10 +158,10 @@ if ($CA_SOURCE -match '^https?://') {
 }
 
 try {
-    # X509Certificate2(string) on .NET 7+ (required by PS7+) handles both PEM and DER
-    # via the OS certificate APIs (CryptQueryObject on Windows), which are lenient about
-    # line endings and encoding variants.  This is more compatible than CreateFromPemFile
-    # whose managed PEM parser is stricter about line-ending consistency.
+    # X509Certificate2(string) on both .NET Framework (PS 5.1) and .NET 5+ uses the
+    # Windows CryptQueryObject API on Windows, which handles both PEM and DER and is
+    # lenient about line endings and encoding variants.  This is more compatible than
+    # CreateFromPemFile whose managed PEM parser is stricter about line-ending consistency.
     $cert = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($CA_FILE)
 } catch {
     Write-Error "File is not a valid certificate." -ErrorAction Continue
