@@ -12,8 +12,8 @@ BeforeAll {
         throw "These tests modify LocalMachine\Root and must be run from an elevated (Administrator) PowerShell session."
     }
 
-    $RepoRoot   = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-    $ScriptPath = Join-Path $RepoRoot 'install-ca.ps1'
+    $global:RepoRoot   = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+    $global:ScriptPath = Join-Path $global:RepoRoot 'install-ca.ps1'
     $script:PowerShellExe = (Get-Process -Id $PID).Path
     if (-not $script:PowerShellExe) {
         $script:PowerShellExe = if ($PSVersionTable.PSEdition -eq 'Core') { 'pwsh' } else { 'powershell' }

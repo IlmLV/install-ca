@@ -445,7 +445,7 @@ try {
 if ($found) {
     Write-Host "    System trust: OK (found in LocalMachine\Root)"
 } else {
-Write-Host "    System trust: NOT FOUND in LocalMachine\Root"
+    Write-Host "    System trust: NOT FOUND in LocalMachine\Root"
 }
 
 Write-Host ""
