@@ -32,10 +32,12 @@ BeforeAll {
     $script:HttpsServerKey = Join-Path $script:TmpCertDir 'https-server.key'
 
     # Invoke install-ca.ps1 directly with named parameters  -  same pattern as bash tests.
-    # Stdin is redirected and closed immediately so any Read-Host call gets EOF -> returns null,
-    # which the script treats as "no input" and exits with error.  Both stdout and stderr are
-    # read asynchronously to avoid the deadlock that sequential ReadToEnd() can cause when the
-    # child process fills one pipe while we are blocked draining the other.
+    # The child process is started non-interactively; if the script reaches Read-Host, the prompt
+    # is not serviced via stdin and will typically fail in non-interactive mode, which the script
+    # then treats as a "no input" / error path. Stdin is still redirected and closed as part of
+    # process setup, but that is not what drives Read-Host here. Both stdout and stderr are read
+    # asynchronously to avoid the deadlock that sequential ReadToEnd() can cause when the child
+    # process fills one pipe while we are blocked draining the other.
     function Join-ProcessArguments {
         param([string[]]$Argument)
 
