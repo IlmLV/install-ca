@@ -59,25 +59,6 @@ $tempDir = [IO.Path]::GetTempPath()
 $caFileName = "ca_{0}.crt" -f ([guid]::NewGuid().ToString("N"))
 $CA_FILE = Join-Path $tempDir $caFileName
 
-# -- Ctrl+C handler ------------------------------------------------------------
-# Initialise to safe defaults so the finally block can reference these variables
-# even if console setup fails (e.g., non-interactive/headless environments).
-$originalTreatControlCAsInput = $false
-$cancelKeyPressSourceId       = "install-ca-cancelkeypress-$([guid]::NewGuid().ToString('N'))"
-$cancelKeyPressSubscription   = $null
-try {
-    $originalTreatControlCAsInput = [Console]::TreatControlCAsInput
-    [Console]::TreatControlCAsInput = $false
-    $cancelKeyPressSubscription = Register-ObjectEvent -InputObject ([Console]) -EventName CancelKeyPress -SourceIdentifier $cancelKeyPressSourceId -Action {
-        Write-Host ""
-        Write-Host "Interrupted - exiting."
-        Remove-Item -LiteralPath $Event.MessageData -Force -ErrorAction SilentlyContinue
-        [Environment]::Exit(130)
-    } -MessageData $CA_FILE
-} catch {
-    # Console not available (non-interactive or redirected I/O) - skip Ctrl+C handler.
-}
-
 # -- Helpers ---------------------------------------------------------------
 
 function Confirm-Action([string]$Prompt) {
@@ -316,7 +297,9 @@ Write-Host ""
 Write-Host "==> Windows Certificate Store - LocalMachine\Root"
 Write-Host "    (covers Chrome, Edge, Brave, Chromium)"
 
+$systemStoreInstallAttempted = $false
 if (Confirm-Action "    Add '$CA_NAME' to the Windows Root CA store?") {
+    $systemStoreInstallAttempted = $true
     $store = [System.Security.Cryptography.X509Certificates.X509Store]::new(
         [System.Security.Cryptography.X509Certificates.StoreName]::Root,
         [System.Security.Cryptography.X509Certificates.StoreLocation]::LocalMachine
@@ -447,36 +430,21 @@ if ($found) {
     Write-Host "    System trust: OK (found in LocalMachine\Root)"
 } else {
     Write-Host "    System trust: NOT FOUND in LocalMachine\Root"
+    if ($systemStoreInstallAttempted) {
+        Write-Error "Certificate was not found in LocalMachine\Root after install." -ErrorAction Continue
+        return 1
+    }
 }
 
 Write-Host ""
 Write-Host "==> All done. Fully quit and restart any open browsers for changes to take effect."
 return 0
 } finally {
-    try {
-        [Console]::TreatControlCAsInput = $originalTreatControlCAsInput
-    } catch {
-        # Ignore failures restoring console state
-    }
-
     if ($null -ne $originalSecurityProtocol) {
         try {
             [Net.ServicePointManager]::SecurityProtocol = $originalSecurityProtocol
         } catch {
             # Ignore failures restoring SecurityProtocol
-        }
-    }
-
-    if ($null -ne $cancelKeyPressSubscription) {
-        try {
-            Unregister-Event -SourceIdentifier $cancelKeyPressSourceId -ErrorAction SilentlyContinue
-        } catch {
-            # Ignore failures unregistering event
-        }
-        try {
-            Remove-Job -Id $cancelKeyPressSubscription.Id -Force -ErrorAction SilentlyContinue
-        } catch {
-            # Ignore failures removing job
         }
     }
 

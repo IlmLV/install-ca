@@ -271,7 +271,9 @@ echo "==> System trust store"
 echo "    sudo cp $CA_FILE $SYSTEM_CA_FILE"
 echo "    sudo update-ca-certificates"
 
+system_store_install_attempted=0
 if confirm "    Proceed?"; then
+  system_store_install_attempted=1
   sudo cp "$CA_FILE" "$SYSTEM_CA_FILE"
   sudo update-ca-certificates
   echo "    Done."
@@ -356,6 +358,10 @@ if openssl verify -CApath "$SYSTEM_CA_PATH" "$CA_FILE" &>/dev/null; then
   echo "    System trust: OK"
 else
   echo "    System trust: FAILED (check that update-ca-certificates succeeded and that the CA is present in $SYSTEM_CA_PATH)"
+  if (( system_store_install_attempted )); then
+    echo "ERROR: Certificate was not found in system trust store after install." >&2
+    exit 1
+  fi
 fi
 
 echo ""

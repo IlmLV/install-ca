@@ -56,16 +56,24 @@ BeforeAll {
 
     function global:Add-CertToStore([Security.Cryptography.X509Certificates.X509Certificate2]$Cert) {
         $store = [Security.Cryptography.X509Certificates.X509Store]::new('Root', 'LocalMachine')
-        $store.Open('ReadWrite')
-        $store.Add($Cert)
-        $store.Close()
+        try {
+            $store.Open('ReadWrite')
+            $store.Add($Cert)
+        } finally {
+            $store.Close()
+            $store.Dispose()
+        }
     }
 
     function global:Remove-CertFromStore([Security.Cryptography.X509Certificates.X509Certificate2]$Cert) {
         $store = [Security.Cryptography.X509Certificates.X509Store]::new('Root', 'LocalMachine')
-        $store.Open('ReadWrite')
-        $store.Certificates | Where-Object Thumbprint -eq $Cert.Thumbprint | ForEach-Object { $store.Remove($_) }
-        $store.Close()
+        try {
+            $store.Open('ReadWrite')
+            $store.Certificates | Where-Object Thumbprint -eq $Cert.Thumbprint | ForEach-Object { $store.Remove($_) }
+        } finally {
+            $store.Close()
+            $store.Dispose()
+        }
     }
 
     # Simulate: irm <url> | iex; Install [args]
