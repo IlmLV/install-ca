@@ -47,7 +47,7 @@ jobs:
   # ── Windows / Native ────────────────────────────────────────────────────────
   test-windows:
     name: Pester (Windows)
-    runs-on: windows-latest
+    runs-on: windows-2025-vs2026
     if: ${{ github.event_name != 'schedule' || github.ref == 'refs/heads/main' }}
 
     steps:
